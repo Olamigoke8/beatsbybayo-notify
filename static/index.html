@@ -65,9 +65,35 @@
               <circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
             </svg>
           </button>
+          <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu" type="button">
+            <span class="menu-toggle-box">
+              <span class="menu-toggle-line"></span>
+              <span class="menu-toggle-line"></span>
+              <span class="menu-toggle-line"></span>
+            </span>
+          </button>
         </div>
       </div>
     </header>
+
+    <!-- Mobile full-screen menu -->
+    <div class="mobile-menu" id="mobileMenu" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
+      <button class="mobile-menu-close" id="menuClose" aria-label="Close menu" type="button">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <nav class="mobile-menu-nav" aria-label="Mobile navigation">
+        <ul role="list">
+          <li><a href="#top" class="mobile-menu-link">Home</a></li>
+          <li><a href="#corporate" class="mobile-menu-link">Corporate</a></li>
+          <li><a href="#weddings" class="mobile-menu-link">Weddings</a></li>
+          <li><a href="#fifty-plus" class="mobile-menu-link">50+ Events</a></li>
+          <li><a href="#packages" class="mobile-menu-link">Packages</a></li>
+          <li><a href="#music" class="mobile-menu-link">Music</a></li>
+          <li><a href="#book" class="mobile-menu-link">Book</a></li>
+        </ul>
+      </nav>
+      <a class="mobile-menu-call" href="tel:+17047042179">704-704-2179</a>
+    </div>
 
     <main>
       <!-- ============ HERO ============ -->
