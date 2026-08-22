@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Admin · BeatsByBayo</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { background: var(--color-bg); color: var(--color-text); }
+    .admin-wrap { max-width: 980px; margin: 0 auto; padding: var(--space-12) var(--space-6); }
+    .admin-wrap h1 { font-family: var(--font-display); font-size: var(--text-3xl); margin-bottom: var(--space-6); }
+    .login-card, .admin-card {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: var(--space-8); box-shadow: var(--shadow-card);
+    }
+    .login-card { max-width: 420px; }
+    .login-card label { display: grid; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-text-muted); }
+    .login-card input {
+      background: var(--color-bg); border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); color: var(--color-text);
+      font-size: var(--text-base);
+    }
+    .login-card .btn { margin-top: var(--space-5); }
+    .err-msg { color: #e67e22; font-size: var(--text-sm); margin-top: var(--space-3); min-height: 1.2em; }
+    .pricing-block { margin-bottom: var(--space-8); }
+    .pricing-block h2 { font-family: var(--font-display); font-size: var(--text-xl); margin-bottom: var(--space-3); }
+    table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+    th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); }
+    th { color: var(--color-text-muted); font-weight: 600; }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: var(--text-xs); }
+    .pill.new { background: rgba(230,126,34,0.15); color: #e67e22; }
+    .pill.sent { background: rgba(46,204,113,0.15); color: #2ecc71; }
+    .pill.fail { background: rgba(231,76,60,0.15); color: #e74c3c; }
+    .pill.skip { background: rgba(255,255,255,0.08); color: var(--color-text-faint); }
+    .inq { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4); background: var(--color-bg); }
+    .inq h3 { font-size: var(--text-base); margin-bottom: var(--space-2); }
+    .inq p { font-size: var(--text-sm); color: var(--color-text-muted); margin: 2px 0; }
+    .meta { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
+    .logout { float: right; font-size: var(--text-sm); color: var(--color-accent); cursor: pointer; background: none; border: none; text-decoration: underline; }
+    .inq.booked { border-color: #2ecc71; background: rgba(46,204,113,0.05); }
+    .inq .book-btn { margin-top: var(--space-3); font-size: var(--text-sm); padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); }
+    .inq .book-btn.is-booked { background: rgba(46,204,113,0.15); color: #2ecc71; border-color: #2ecc71; }
+    .booked-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+    .booked-chip { background: rgba(46,204,113,0.15); color: #2ecc71; padding: 4px 12px; border-radius: 999px; font-size: var(--text-sm); }
+    .empty { color: var(--color-text-faint); font-size: var(--text-sm); }
+  </style>
+</head>
+<body>
+  <div class="admin-wrap">
+    <h1>BeatsByBayo <span style="font-size:var(--text-sm);color:var(--color-text-faint);font-weight:400;">Admin</span></h1>
+
+    <!-- Login view -->
+    <div id="loginView" class="login-card">
+      <label>Admin password
+        <input type="password" id="pw" placeholder="Password" autocomplete="current-password" />
+      </label>
+      <button class="btn btn-primary btn-wide" id="loginBtn">Log in</button>
+      <p class="err-msg" id="loginErr"></p>
+    </div>
+
+    <!-- Dashboard view -->
+    <div id="dashView" hidden>
+      <button class="logout" id="logoutBtn">Log out</button>
+
+      <div class="pricing-block admin-card">
+        <h2>Full pricing (admin only)</h2>
+        <div id="pricing"></div>
+      </div>
+
+      <div class="admin-card" style="margin-bottom:var(--space-6)">
+        <h2>Booked dates</h2>
+        <p class="empty" id="bookedDesc" style="margin-bottom:4px">Dates you've confirmed as booked — hidden from public availability.</p>
+        <div class="booked-bar" id="bookedBar"></div>
+      </div>
+
+      <div class="admin-card">
+        <h2>Inquiries</h2>
+        <div id="inquiries"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Same-origin when served by the backend (Render / beatsbybayo.com);
+    // falls back to the rewritten __PORT_8000__ proxy for the Perplexity preview.
+    var API = '__PORT_8000__';
+    if (API.indexOf('__PORT_8000__') !== -1) { API = ''; }
+    var token = '';
+
+    function $(id) { return document.getElementById(id); }
+
+    // Login
+    $('loginBtn').addEventListener('click', doLogin);
+    $('pw').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+
+    function doLogin() {
+      var pw = $('pw').value;
+      $('loginErr').textContent = '';
+      fetch(API + '/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      })
+        .then(function (r) { return r.json().then(function (d) { return { s: r.status, d: d }; }); })
+        .then(function (res) {
+          if (res.s === 200 && res.d.token) {
+            token = res.d.token;
+            $('loginView').hidden = true;
+            $('dashView').hidden = false;
+            renderPricing(res.d.pricing);
+            loadInquiries();
+          } else {
+            $('loginErr').textContent = 'Incorrect password.';
+          }
+        })
+        .catch(function () { $('loginErr').textContent = 'Could not reach server.'; });
+    }
+
+    function renderPricing(p) {
+      if (!p) return;
+      var h = '';
+      h += '<p style="margin-bottom:8px"><strong>$' + p.retainer.amount + '</strong> ' + p.retainer.label + ' — ' + p.retainer.note + '</p>';
+      h += '<table><thead><tr><th>Package</th><th>Price</th><th>Hours</th><th>Includes</th></tr></thead><tbody>';
+      p.packages.forEach(function (pk) {
+        h += '<tr><td>' + pk.name + '</td><td>$' + pk.price + '</td><td>up to ' + pk.hours + 'h</td><td>' + pk.includes + '</td></tr>';
+      });
+      h += '</tbody></table>';
+      h += '<h3 style="margin-top:16px">Add-ons</h3><table><thead><tr><th>Add-on</th><th>Price</th><th>Note</th></tr></thead><tbody>';
+      p.addons.forEach(function (a) {
+        h += '<tr><td>' + a.name + (a.admin_only ? ' <span class="pill skip">admin-only</span>' : '') + '</td><td>$' + a.price + '</td><td>' + (a.note || '') + '</td></tr>';
+      });
+      h += '</tbody></table>';
+      $('pricing').innerHTML = h;
+    }
+
+    function pill(status) {
+      var s = (status || '').toLowerCase();
+      var cls = 'skip', label = status || '—';
+      if (s.indexOf('sent:') === 0 || s === 'sent') { cls = 'sent'; label = 'Delivered'; }
+      else if (s.indexOf('fail') === 0 || s.indexOf('error') === 0) { cls = 'fail'; label = 'Failed'; }
+      else if (s.indexOf('skip') === 0 || s.indexOf('not_config') === 0) { cls = 'skip'; label = 'Not set up'; }
+      return '<span class="pill ' + cls + '">' + label + '</span>';
+    }
+
+    function loadInquiries() {
+      fetch(API + '/api/admin/inquiries', { headers: { Authorization: 'Bearer ' + token } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var list = d.inquiries || [];
+          if (!list.length) { $('inquiries').innerHTML = '<p class="empty">No inquiries yet.</p>'; return; }
+          var h = '';
+          list.forEach(function (i) {
+            var isBooked = String(i.booked) === '1';
+            h += '<div class="inq' + (isBooked ? ' booked' : '') + '"><h3>' + esc(i.name) + ' — ' + esc(i.event_type) + (isBooked ? ' <span class="pill sent">Booked</span>' : '') + '</h3>' +
+              '<p><strong>Date:</strong> ' + esc(i.event_date) + ' &nbsp; <strong>Venue:</strong> ' + esc(i.venue || '-') + '</p>' +
+              '<p><strong>Email:</strong> ' + esc(i.email) + ' &nbsp; <strong>Phone:</strong> ' + esc(i.phone) + '</p>' +
+              '<p><strong>Guests:</strong> ' + esc(i.guest_count || '-') + ' &nbsp; <strong>Package:</strong> ' + esc(i.package || 'Not selected') + '</p>' +
+              (i.message ? '<p><strong>Notes:</strong> ' + esc(i.message) + '</p>' : '') +
+              '<div class="meta"><span>Email: ' + pill(i.notify_email) + '</span><span>Text: ' + pill(i.notify_sms) + '</span><span>Auto-reply: ' + pill(i.notify_autoreply) + '</span><span>Received: ' + new Date(i.created_at).toLocaleString() + '</span></div>' +
+              '<button class="book-btn' + (isBooked ? ' is-booked' : '') + '" data-id="' + i.id + '" data-booked="' + (isBooked ? '1' : '0') + '">' + (isBooked ? '✓ Booked — unmark' : 'Mark as booked') + '</button>' +
+              '</div>';
+          });
+          $('inquiries').innerHTML = h;
+          // Wire up booked buttons
+          document.querySelectorAll('.book-btn').forEach(function (b) {
+            b.addEventListener('click', function () { toggleBooked(b.getAttribute('data-id'), b.getAttribute('data-booked') === '1'); });
+          });
+          // Render booked-dates panel
+          var bd = list.filter(function (i) { return String(i.booked) === '1' && i.event_date; }).map(function (i) { return i.event_date; });
+          var uniq = Array.from(new Set(bd)).sort();
+          $('bookedBar').innerHTML = uniq.length ? uniq.map(function (d) { return '<span class="booked-chip">' + d + '</span>'; }).join('') : '<span class="empty">No dates booked yet.</span>';
+        })
+        .catch(function () { $('inquiries').innerHTML = '<p class="empty">Could not load inquiries.</p>'; });
+    }
+
+    function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+    function toggleBooked(id, currentlyBooked) {
+      fetch(API + '/api/admin/inquiries/' + id + '/booked', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ booked: !currentlyBooked }),
+      }).then(function () { loadInquiries(); }).catch(function () {});
+    }
+
+    $('logoutBtn').addEventListener('click', function () {
+      token = '';
+      $('dashView').hidden = true;
+      $('loginView').hidden = false;
+      $('pw').value = '';
+    });
+  </script>
+</body>
+</html>
