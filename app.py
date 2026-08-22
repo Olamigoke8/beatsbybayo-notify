@@ -114,7 +114,7 @@ class Database:
     def _init_schema(self):
         if self.pg:
             with self._pg() as c:
-                c.execute(self._q(_CREATE_TABLE))
+                c.cursor().execute(self._q(_CREATE_TABLE))
         else:
             with self._lock:
                 self._sqlite.execute(self._q(_CREATE_TABLE))
@@ -129,7 +129,7 @@ class Database:
         """Run a write (INSERT/UPDATE). Commits immediately."""
         if self.pg:
             with self._pg() as c:
-                c.execute(self._q(sql), params)
+                c.cursor().execute(self._q(sql), params)
         else:
             with self._lock:
                 self._sqlite.execute(self._q(sql), params)
@@ -139,7 +139,9 @@ class Database:
         """Run a read and return a list of dict rows."""
         if self.pg:
             with self._pg() as c:
-                rows = c.execute(self._q(sql), params).fetchall()
+                cur = c.cursor()
+                cur.execute(self._q(sql), params)
+                rows = cur.fetchall()
             return [dict(r) for r in rows]
         else:
             with self._lock:
