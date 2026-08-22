@@ -15,6 +15,7 @@ to this file. For production, set them as env vars instead (see README).
 import os
 import json
 import sqlite3
+import threading
 import hashlib
 import secrets
 from collections import defaultdict, deque
@@ -65,30 +66,93 @@ PRICING = {
 }
 
 # ---------------------------------------------------------------------------
-# DB
+# DB — Postgres in production (via DATABASE_URL), SQLite as a local fallback.
+# A fresh Postgres connection is opened per operation so a serverless DB that
+# closes idle sockets (e.g. Neon scaling to zero) can never break a submission.
 # ---------------------------------------------------------------------------
-os.makedirs("data", exist_ok=True)
-DB = sqlite3.connect("data/inquiries.db", check_same_thread=False)
-DB.row_factory = sqlite3.Row
-DB.execute(
-    """CREATE TABLE IF NOT EXISTS inquiries (
-        id TEXT PRIMARY KEY,
-        created_at TEXT NOT NULL,
-        name TEXT, email TEXT, phone TEXT,
-        event_type TEXT, event_date TEXT, venue TEXT, guest_count TEXT,
-        package TEXT, message TEXT,
-        notify_email TEXT, notify_sms TEXT, notify_autoreply TEXT,
-        status TEXT DEFAULT 'new',
-        booked INTEGER DEFAULT 0
-    )"""
-)
-# Migrate older tables that lack the new columns.
-for _col, _decl in [("notify_autoreply", "TEXT"), ("booked", "INTEGER DEFAULT 0")]:
-    try:
-        DB.execute(f"ALTER TABLE inquiries ADD COLUMN {_col} {_decl}")
-    except sqlite3.OperationalError:
-        pass  # column already exists
-DB.commit()
+_CREATE_TABLE = """CREATE TABLE IF NOT EXISTS inquiries (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    name TEXT, email TEXT, phone TEXT,
+    event_type TEXT, event_date TEXT, venue TEXT, guest_count TEXT,
+    package TEXT, message TEXT,
+    notify_email TEXT, notify_sms TEXT, notify_autoreply TEXT,
+    status TEXT DEFAULT 'new',
+    booked INTEGER DEFAULT 0
+)"""
+
+class Database:
+    def __init__(self):
+        self.url = os.environ.get("DATABASE_URL", "").strip()
+        self.pg = bool(self.url)
+        self._lock = threading.Lock()
+        if self.pg:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            self._psycopg2 = psycopg2
+            self._cursor = RealDictCursor
+        else:
+            os.makedirs("data", exist_ok=True)
+            self._sqlite = sqlite3.connect("data/inquiries.db", check_same_thread=False)
+            self._sqlite.row_factory = sqlite3.Row
+        self._init_schema()
+
+    @staticmethod
+    def _norm(url: str) -> str:
+        # psycopg2 expects the postgresql:// scheme; many hosts hand out postgres://
+        if url.startswith("postgres://"):
+            url = "postgresql://" + url[len("postgres://"):]
+        return url
+
+    def _pg(self):
+        return self._psycopg2.connect(self._norm(self.url), cursor_factory=self._cursor)
+
+    def _q(self, sql: str) -> str:
+        # SQLite uses ? placeholders; Postgres uses %s.
+        return sql.replace("?", "%s") if self.pg else sql
+
+    def _init_schema(self):
+        if self.pg:
+            with self._pg() as c:
+                c.execute(self._q(_CREATE_TABLE))
+        else:
+            with self._lock:
+                self._sqlite.execute(self._q(_CREATE_TABLE))
+                for _col, _decl in [("notify_autoreply", "TEXT"), ("booked", "INTEGER DEFAULT 0")]:
+                    try:
+                        self._sqlite.execute(f"ALTER TABLE inquiries ADD COLUMN {_col} {_decl}")
+                    except sqlite3.OperationalError:
+                        pass  # column already exists
+                self._sqlite.commit()
+
+    def execute(self, sql, params=()):
+        """Run a write (INSERT/UPDATE). Commits immediately."""
+        if self.pg:
+            with self._pg() as c:
+                c.execute(self._q(sql), params)
+        else:
+            with self._lock:
+                self._sqlite.execute(self._q(sql), params)
+                self._sqlite.commit()
+
+    def fetch(self, sql, params=()):
+        """Run a read and return a list of dict rows."""
+        if self.pg:
+            with self._pg() as c:
+                rows = c.execute(self._q(sql), params).fetchall()
+            return [dict(r) for r in rows]
+        else:
+            with self._lock:
+                rows = self._sqlite.execute(self._q(sql), params).fetchall()
+            return [{k: r[k] for k in r.keys()} for r in rows]
+
+    def commit(self):
+        # Writes already auto-commit in execute(); kept for compatibility.
+        if not self.pg:
+            with self._lock:
+                self._sqlite.commit()
+
+DB = Database()
 
 # ---------------------------------------------------------------------------
 # Auth + rate limiting
@@ -228,7 +292,7 @@ def admin_login(req: LoginReq):
 @app.get("/api/admin/inquiries")
 def admin_list_inquiries(request: Request):
     check_token(request)
-    rows = DB.execute("SELECT * FROM inquiries ORDER BY created_at DESC").fetchall()
+    rows = DB.fetch("SELECT * FROM inquiries ORDER BY created_at DESC")
     return {"inquiries": [fmt_inquiry(r) for r in rows]}
 
 @app.post("/api/admin/inquiries/{iid}/status")
@@ -248,9 +312,9 @@ def admin_set_booked(iid: str, req: BookedReq, request: Request):
 @app.get("/api/booked-dates")
 def booked_dates():
     """Public: list of event dates Bayo has confirmed (taken)."""
-    rows = DB.execute(
+    rows = DB.fetch(
         "SELECT DISTINCT event_date FROM inquiries WHERE booked=1 AND event_date<>''"
-    ).fetchall()
+    )
     return {"booked_dates": [r["event_date"] for r in rows]}
 
 @app.get("/api/health")
