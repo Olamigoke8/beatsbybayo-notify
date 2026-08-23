@@ -154,15 +154,19 @@ class Database:
             ("payment_created_at", "TEXT"),
         ]
         if self.pg:
-            with self._pg() as c:
-                cur = c.cursor()
-                cur.execute(self._q(_CREATE_TABLE))
-                cur.execute(self._q(_CREATE_TESTIMONIALS))
-                for _col, _decl in _migrations:
-                    try:
-                        cur.execute(f"ALTER TABLE inquiries ADD COLUMN {_col} {_decl}")
-                    except Exception:
-                        pass  # column already exists
+            # autocommit so a failed ALTER (column exists) doesn't abort the
+            # transaction and roll back the columns we're trying to add.
+            c = self._pg()
+            c.autocommit = True
+            cur = c.cursor()
+            cur.execute(self._q(_CREATE_TABLE))
+            cur.execute(self._q(_CREATE_TESTIMONIALS))
+            for _col, _decl in _migrations:
+                try:
+                    cur.execute(f"ALTER TABLE inquiries ADD COLUMN {_col} {_decl}")
+                except Exception:
+                    pass  # column already exists
+            c.close()
         else:
             with self._lock:
                 self._sqlite.execute(self._q(_CREATE_TABLE))
