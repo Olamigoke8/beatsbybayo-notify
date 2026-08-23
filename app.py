@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -239,7 +239,7 @@ def fmt_inquiry(row: sqlite3.Row) -> dict:
     return {k: row[k] for k in row.keys()}
 
 @app.post("/api/inquiries")
-async def create_inquiry(inq: Inquiry, request: Request):
+async def create_inquiry(inq: Inquiry, request: Request, background_tasks: BackgroundTasks):
     # Honeypot: real users never see this hidden field; bots fill it.
     if inq.website.strip():
         return {"ok": True, "id": "spam"}  # silently accept, do nothing
@@ -267,7 +267,16 @@ async def create_inquiry(inq: Inquiry, request: Request):
     )
     DB.commit()
 
-    # Fire notifications (best-effort, never block the response).
+    # Fire notifications in the background so the response returns immediately.
+    background_tasks.add_task(process_inquiry_notifications, iid, inq)
+
+    return {"ok": True, "id": iid, "notify": {
+        "email": "queued", "sms": "queued", "autoreply": "queued"
+    }}
+
+
+async def process_inquiry_notifications(iid: str, inq: Inquiry):
+    """Best-effort notification dispatch — runs after the HTTP response is sent."""
     email_status = "skipped"
     sms_status = "skipped"
     autoreply_status = "skipped"
@@ -284,16 +293,16 @@ async def create_inquiry(inq: Inquiry, request: Request):
     except Exception as e:
         autoreply_status = f"error: {e}"
 
-    DB.execute(
-        """UPDATE inquiries
-           SET notify_email=?, notify_sms=?, notify_autoreply=? WHERE id=?""",
-        (email_status, sms_status, autoreply_status, iid),
-    )
-    DB.commit()
+    try:
+        DB.execute(
+            """UPDATE inquiries
+               SET notify_email=?, notify_sms=?, notify_autoreply=? WHERE id=?""",
+            (email_status, sms_status, autoreply_status, iid),
+        )
+        DB.commit()
+    except Exception:
+        pass
 
-    return {"ok": True, "id": iid, "notify": {
-        "email": email_status, "sms": sms_status, "autoreply": autoreply_status
-    }}
 
 @app.post("/api/admin/login")
 def admin_login(req: LoginReq):
