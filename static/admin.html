@@ -44,6 +44,17 @@
     .booked-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
     .booked-chip { background: rgba(46,204,113,0.15); color: #2ecc71; padding: 4px 12px; border-radius: 999px; font-size: var(--text-sm); }
     .empty { color: var(--color-text-faint); font-size: var(--text-sm); }
+    .rev { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4); background: var(--color-bg); }
+    .rev.pending { border-color: #e67e22; background: rgba(230,126,34,0.04); }
+    .rev h3 { font-size: var(--text-base); margin-bottom: var(--space-2); }
+    .rev p { font-size: var(--text-sm); color: var(--color-text-muted); margin: 2px 0; }
+    .rev .stars { color: #e67e22; letter-spacing: 1px; }
+    .rev .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+    .act-btn { font-size: var(--text-sm); padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); }
+    .act-btn.approve { background: rgba(46,204,113,0.15); color: #2ecc71; border-color: #2ecc71; }
+    .act-btn.reject { background: rgba(231,76,60,0.1); color: #e74c3c; border-color: rgba(231,76,60,0.4); }
+    .request-btn { margin-top: var(--space-3); font-size: var(--text-sm); padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); margin-left: 8px; }
+    .copy-link { font-size: var(--text-sm); color: var(--color-accent); cursor: pointer; background: none; border: none; text-decoration: underline; display: block; margin-bottom: var(--space-4); }
   </style>
 </head>
 <body>
@@ -72,6 +83,13 @@
         <h2>Booked dates</h2>
         <p class="empty" id="bookedDesc" style="margin-bottom:4px">Dates you've confirmed as booked — hidden from public availability.</p>
         <div class="booked-bar" id="bookedBar"></div>
+      </div>
+
+      <div class="admin-card" style="margin-bottom:var(--space-6)">
+        <h2>Reviews</h2>
+        <p class="empty" id="reviewsDesc" style="margin-bottom:8px">Client reviews awaiting approval — approve to publish them on the site.</p>
+        <button class="copy-link" id="copyReviewLink">Copy review link to share</button>
+        <div id="reviews"></div>
       </div>
 
       <div class="admin-card">
@@ -110,6 +128,7 @@
             $('dashView').hidden = false;
             renderPricing(res.d.pricing);
             loadInquiries();
+            loadReviews();
           } else {
             $('loginErr').textContent = 'Incorrect password.';
           }
@@ -159,12 +178,17 @@
               (i.message ? '<p><strong>Notes:</strong> ' + esc(i.message) + '</p>' : '') +
               '<div class="meta"><span>Email: ' + pill(i.notify_email) + '</span><span>Text: ' + pill(i.notify_sms) + '</span><span>Auto-reply: ' + pill(i.notify_autoreply) + '</span><span>Received: ' + new Date(i.created_at).toLocaleString() + '</span></div>' +
               '<button class="book-btn' + (isBooked ? ' is-booked' : '') + '" data-id="' + i.id + '" data-booked="' + (isBooked ? '1' : '0') + '">' + (isBooked ? '✓ Booked — unmark' : 'Mark as booked') + '</button>' +
+              '<button class="request-btn" data-name="' + attr(i.name) + '" data-event="' + attr(i.event_type) + '">Request review</button>' +
               '</div>';
           });
           $('inquiries').innerHTML = h;
           // Wire up booked buttons
           document.querySelectorAll('.book-btn').forEach(function (b) {
             b.addEventListener('click', function () { toggleBooked(b.getAttribute('data-id'), b.getAttribute('data-booked') === '1'); });
+          });
+          // Wire up request-review buttons
+          document.querySelectorAll('.request-btn').forEach(function (b) {
+            b.addEventListener('click', function () { openRequestReview(b.getAttribute('data-name'), b.getAttribute('data-event')); });
           });
           // Render booked-dates panel
           var bd = list.filter(function (i) { return String(i.booked) === '1' && i.event_date; }).map(function (i) { return i.event_date; });
@@ -174,7 +198,8 @@
         .catch(function () { $('inquiries').innerHTML = '<p class="empty">Could not load inquiries.</p>'; });
     }
 
-    function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+    function attr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
     function toggleBooked(id, currentlyBooked) {
       fetch(API + '/api/admin/inquiries/' + id + '/booked', {
@@ -183,6 +208,58 @@
         body: JSON.stringify({ booked: !currentlyBooked }),
       }).then(function () { loadInquiries(); }).catch(function () {});
     }
+
+    // --- Reviews ---
+    function reviewLink() { return window.location.origin + '/review.html'; }
+    function starStr(n) { n = +n || 0; if (n < 0) n = 0; if (n > 5) n = 5; return '★'.repeat(n) + '☆'.repeat(5 - n); }
+    function loadReviews() {
+      fetch(API + '/api/admin/testimonials', { headers: { Authorization: 'Bearer ' + token } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var list = d.testimonials || [];
+          var pending = list.filter(function (t) { return (t.status || '') === 'pending'; });
+          $('reviewsDesc').textContent = pending.length
+            ? pending.length + ' review' + (pending.length > 1 ? 's' : '') + ' awaiting approval — approve to publish.'
+            : 'No reviews awaiting approval. Share the review link with past clients.';
+          if (!list.length) { $('reviews').innerHTML = '<p class="empty">No reviews yet.</p>'; return; }
+          var h = '';
+          list.forEach(function (t) {
+            var st = t.status || 'pending';
+            var pend = st === 'pending';
+            var pillCls = st === 'approved' ? 'sent' : st === 'rejected' ? 'fail' : 'new';
+            var actions = pend
+              ? '<div class="actions"><button class="act-btn approve" data-id="' + t.id + '" data-act="approve">Approve</button><button class="act-btn reject" data-id="' + t.id + '" data-act="reject">Reject</button></div>'
+              : (st === 'rejected'
+                  ? '<div class="actions"><button class="act-btn approve" data-id="' + t.id + '" data-act="approve">Approve</button></div>'
+                  : '<div class="actions"><button class="act-btn reject" data-id="' + t.id + '" data-act="reject">Unpublish</button></div>');
+            h += '<div class="rev' + (pend ? ' pending' : '') + '">' +
+              '<h3>' + esc(t.name) + ' <span class="pill ' + pillCls + '">' + esc(st) + '</span></h3>' +
+              '<p><span class="stars">' + starStr(t.rating) + '</span> &nbsp; ' + esc(t.event_type || '-') + ' · ' + new Date(t.created_at).toLocaleString() + '</p>' +
+              '<p style="color:var(--color-text)">' + esc(t.testimonial) + '</p>' +
+              actions + '</div>';
+          });
+          $('reviews').innerHTML = h;
+          document.querySelectorAll('.act-btn').forEach(function (b) {
+            b.addEventListener('click', function () { reviewAction(b.getAttribute('data-id'), b.getAttribute('data-act')); });
+          });
+        })
+        .catch(function () { $('reviews').innerHTML = '<p class="empty">Could not load reviews.</p>'; });
+    }
+    function reviewAction(id, act) {
+      fetch(API + '/api/admin/testimonials/' + id + '/' + act, { method: 'POST', headers: { Authorization: 'Bearer ' + token } })
+        .then(function () { loadReviews(); }).catch(function () {});
+    }
+    function openRequestReview(name, eventType) {
+      var first = (name || '').split(' ')[0] || 'there';
+      var text = 'Hi ' + first + ', thanks again for having me at your ' + (eventType || 'event') + '! If you enjoyed the night, would you mind leaving a quick review? It really helps: ' + reviewLink();
+      window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    }
+    $('copyReviewLink').addEventListener('click', function () {
+      var link = reviewLink();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(function () { $('copyReviewLink').textContent = 'Copied: ' + link; }, function () { window.prompt('Copy this link:', link); });
+      } else { window.prompt('Copy this link:', link); }
+    });
 
     $('logoutBtn').addEventListener('click', function () {
       token = '';

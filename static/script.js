@@ -35,7 +35,7 @@
 
   /* ---------- Header shadow + active nav ---------- */
   var header = document.getElementById('header');
-  var sections = ['top', 'corporate', 'weddings', 'fifty-plus', 'packages', 'music', 'book']
+  var sections = ['top', 'events', 'packages', 'music', 'gallery', 'reviews', 'book']
     .map(function (id) {
       return document.getElementById(id);
     })
@@ -261,4 +261,62 @@
       a.addEventListener('click', _closeMenu);
     });
   }
+
+  /* ---------- Events tabs ---------- */
+  (function () {
+    var tabs = document.querySelectorAll('.events-tab');
+    var panels = document.querySelectorAll('.events-panel');
+    if (!tabs.length) return;
+    function activate(tab) {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.classList.toggle('is-active', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      var pid = tab.getAttribute('aria-controls');
+      panels.forEach(function (p) {
+        var on = p.id === pid;
+        p.classList.toggle('is-active', on);
+        p.hidden = !on;
+      });
+    }
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () { activate(t); });
+    });
+    var deep = { '#corporate': 'tab-corporate', '#weddings': 'tab-weddings', '#fifty-plus': 'tab-fifty' };
+    function deepLink() {
+      var tid = deep[location.hash];
+      if (!tid) return;
+      var tab = document.getElementById(tid);
+      var ev = document.getElementById('events');
+      if (!tab || !ev) return;
+      activate(tab);
+      ev.scrollIntoView({ behavior: 'smooth' });
+    }
+    window.addEventListener('hashchange', deepLink);
+    deepLink();
+  })();
+
+  /* ---------- Testimonials (public, approved only) ---------- */
+  (function () {
+    var el = document.getElementById('testimonialList');
+    if (!el) return;
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function renderEmpty() {
+      el.innerHTML = '<p class="reviews-empty">Client stories coming soon — be the first to share yours. <a href="/review.html">Leave a review</a>.</p>';
+    }
+    fetch('/api/testimonials').then(function (r) { return r.json(); }).then(function (data) {
+      var items = (data && data.testimonials) || [];
+      if (!items.length) { renderEmpty(); return; }
+      el.innerHTML = items.map(function (t) {
+        var r = Math.max(1, Math.min(5, parseInt(t.rating || 5, 10) || 5));
+        var stars = '★'.repeat(r) + '☆'.repeat(5 - r);
+        return '<figure class="review-card"><div class="review-stars">' + stars + '</div><blockquote>' + esc(t.testimonial) + '</blockquote><figcaption><strong>' + esc(t.name) + '</strong>' + (t.event_type ? '<span>' + esc(t.event_type) + '</span>' : '') + '</figcaption></figure>';
+      }).join('');
+    }).catch(renderEmpty);
+  })();
 })();

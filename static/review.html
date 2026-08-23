@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leave a Review · BeatsByBayo</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { background: var(--color-bg); color: var(--color-text); }
+    .review-wrap { max-width: 620px; margin: 0 auto; padding: var(--space-10) var(--space-5) var(--space-16); }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--color-text-muted); text-decoration: none; margin-bottom: var(--space-6); }
+    .back-link:hover { color: var(--color-accent); }
+    .review-head { text-align: center; margin-bottom: var(--space-8); }
+    .eyebrow { color: var(--color-accent); font-size: var(--text-xs); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 600; margin-bottom: var(--space-3); }
+    h1 { font-family: var(--font-display); font-size: var(--text-2xl); }
+    .review-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-8); box-shadow: var(--shadow-card); }
+    .field { margin-bottom: var(--space-5); }
+    .field label { display: block; font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-2); }
+    .field input, .field select, .field textarea {
+      width: 100%; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      padding: var(--space-3) var(--space-4); color: var(--color-text); font-size: var(--text-base); font-family: inherit;
+    }
+    .field textarea { min-height: 120px; resize: vertical; }
+    .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+    .stars { display: flex; gap: 6px; font-size: 30px; cursor: pointer; user-select: none; }
+    .stars span { color: var(--color-text-faint); transition: color .15s; }
+    .stars span.on { color: #e67e22; }
+    .honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .submit-row { margin-top: var(--space-6); }
+    .err { color: #e74c3c; font-size: var(--text-sm); margin-top: var(--space-3); min-height: 1.2em; }
+    .note { font-size: var(--text-xs); color: var(--color-text-faint); margin-top: var(--space-5); text-align: center; }
+    .success { text-align: center; padding: var(--space-10) 0; }
+    .success .check { font-size: 56px; color: #2ecc71; line-height: 1; }
+    .success h1 { margin-top: var(--space-4); }
+  </style>
+</head>
+<body>
+  <div class="review-wrap" id="formView">
+    <a class="back-link" href="/">← Back to BeatsByBayo</a>
+    <div class="review-head">
+      <p class="eyebrow">Client review</p>
+      <h1>How was your event?</h1>
+      <p style="color:var(--color-text-muted)">Share a few words about your experience with Bayo.</p>
+    </div>
+
+    <div class="review-card">
+      <form id="reviewForm" novalidate>
+        <div class="field">
+          <label for="r-name">Your name</label>
+          <input type="text" id="r-name" name="name" required placeholder="e.g. Maria G." />
+        </div>
+        <div class="field">
+          <label for="r-event">Event type</label>
+          <select id="r-event" name="event_type">
+            <option value="">Select (optional)</option>
+            <option>Corporate event</option>
+            <option>Wedding</option>
+            <option>50+ Celebration</option>
+            <option>Anniversary</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Rating</label>
+          <div class="stars" id="stars" role="group" aria-label="Star rating">
+            <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+          </div>
+          <input type="hidden" id="r-rating" name="rating" value="5" />
+        </div>
+        <div class="field">
+          <label for="r-text">Your review</label>
+          <textarea id="r-text" name="testimonial" required placeholder="Tell future clients what made the night work..."></textarea>
+        </div>
+        <input class="honeypot" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <div class="submit-row">
+          <button type="submit" class="btn btn-primary btn-wide" id="submitBtn">Submit review</button>
+        </div>
+        <p class="err" id="reviewErr"></p>
+      </form>
+    </div>
+    <p class="note">Reviews appear on the site once Bayo approves them. Thanks for taking a moment.</p>
+  </div>
+
+  <div class="review-wrap success" id="successView" hidden>
+    <div class="check">✓</div>
+    <h1>Thank you</h1>
+    <p style="color:var(--color-text-muted)">Your review is in — it'll appear on the site once Bayo approves it.</p>
+    <a class="btn btn-primary" href="/" style="margin-top:var(--space-6)">Back to site</a>
+  </div>
+
+  <script>
+    var API = '__PORT_8000__';
+    if (API.indexOf('__PORT_8000__') !== -1) { API = ''; }
+
+    var rating = 5;
+    var stars = document.querySelectorAll('#stars span');
+    function setStars(n) {
+      rating = n;
+      document.getElementById('r-rating').value = n;
+      stars.forEach(function (s, i) { s.classList.toggle('on', i < n); });
+    }
+    stars.forEach(function (s) {
+      s.addEventListener('click', function () { setStars(+s.getAttribute('data-v')); });
+      s.addEventListener('mouseenter', function () {
+        var v = +s.getAttribute('data-v');
+        stars.forEach(function (x, i) { x.classList.toggle('on', i < v); });
+      });
+    });
+    document.getElementById('stars').addEventListener('mouseleave', function () {
+      stars.forEach(function (x, i) { x.classList.toggle('on', i < rating); });
+    });
+    setStars(5);
+
+    document.getElementById('reviewForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = document.getElementById('submitBtn');
+      var err = document.getElementById('reviewErr');
+      err.textContent = '';
+      btn.disabled = true; btn.textContent = 'Sending…';
+      var data = {
+        name: document.getElementById('r-name').value,
+        event_type: document.getElementById('r-event').value,
+        rating: parseInt(document.getElementById('r-rating').value, 10) || 5,
+        testimonial: document.getElementById('r-text').value,
+        website: document.querySelector('input[name=website]').value
+      };
+      fetch(API + '/api/testimonials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(function (r) { return r.json().then(function (d) { return { s: r.status, d: d }; }); })
+        .then(function (res) {
+          if (res.s === 200 && res.d.ok) {
+            document.getElementById('formView').hidden = true;
+            document.getElementById('successView').hidden = false;
+            window.scrollTo(0, 0);
+          } else {
+            throw new Error((res.d && res.d.detail) || 'Could not submit. Please try again.');
+          }
+        }).catch(function (ex) {
+          err.textContent = ex.message || 'Something went wrong. Please try again.';
+          btn.disabled = false; btn.textContent = 'Submit review';
+        });
+    });
+  </script>
+</body>
+</html>

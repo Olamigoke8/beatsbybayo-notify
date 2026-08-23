@@ -1470,3 +1470,173 @@ body.menu-open .menu-toggle-line:nth-child(3) { transform: translateY(-7px) rota
   .menu-toggle { display: inline-flex; }
   .mobile-menu { display: flex; }
 }
+
+/* Anchor jumps must clear the sticky header */
+section[id] { scroll-margin-top: 84px; }
+
+/* ============================================================
+   Hero v2 — centered, background image, quick tabs above logo
+   ============================================================ */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: linear-gradient(180deg, rgba(10,10,12,0.92) 0%, rgba(10,10,12,0.74) 42%, rgba(10,10,12,0.96) 100%), url(assets/gallery-dj-booth.jpg);
+  background-size: cover;
+  background-position: center;
+}
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: var(--content-default);
+  margin-inline: auto;
+  padding-inline: var(--space-6);
+  text-align: center;
+}
+.hero-title.center { margin-top: var(--space-5); }
+.hero-lead.center { margin-inline: auto; max-width: 46ch; }
+.hero-trust.center { justify-content: center; }
+.hero-quick-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+}
+.hero-logo-wrap { margin-top: var(--space-12); }
+
+/* ============================================================
+   Events tabs
+   ============================================================ */
+.events-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-block: var(--space-10);
+}
+.events-tab {
+  padding: 0.6rem 1.4rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+.events-tab:hover { color: var(--color-text); border-color: var(--color-cyan); }
+.events-tab.is-active {
+  background: var(--color-cyan-soft);
+  color: var(--color-cyan);
+  border-color: var(--color-cyan);
+}
+.events-panel { display: none; }
+.events-panel.is-active { display: block; }
+
+/* ============================================================
+   Gallery
+   ============================================================ */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.gallery-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  aspect-ratio: 4 / 3;
+  background: var(--color-surface-2);
+}
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 400ms cubic-bezier(0.16,1,0.3,1);
+}
+.gallery-item:hover img { transform: scale(1.05); }
+.gallery-cap {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-full);
+  background: rgba(10,10,12,0.7);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(6px);
+}
+.gallery-note {
+  margin-top: var(--space-8);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-faint);
+}
+.gallery-note a { color: var(--color-cyan); }
+
+/* ============================================================
+   Reviews / testimonials
+   ============================================================ */
+.reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+  margin-top: var(--space-8);
+}
+.reviews-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--color-text-muted);
+  padding-block: var(--space-8);
+  font-size: var(--text-lg);
+}
+.reviews-empty a { color: var(--color-cyan); }
+.review-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+}
+.review-stars { color: var(--color-orange); letter-spacing: 0.1em; margin-bottom: var(--space-3); }
+.review-card blockquote {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+.review-card figcaption { display: flex; flex-direction: column; gap: 0.1rem; }
+.review-card figcaption strong { font-size: var(--text-sm); }
+.review-card figcaption span { font-size: var(--text-xs); color: var(--color-text-faint); }
+.reviews-cta {
+  margin-top: var(--space-10);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+.reviews-cta-sub { font-size: var(--text-sm); color: var(--color-text-faint); }
+
+/* How It Works — atmospheric background */
+.section#how {
+  position: relative;
+  background-image: linear-gradient(180deg, rgba(10,10,12,0.94), rgba(10,10,12,0.98)), url(assets/gallery-milestone.jpg);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+.section#how .container { position: relative; z-index: 1; }
+
+@media (max-width: 980px) {
+  .reviews-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .gallery-grid { grid-template-columns: 1fr; }
+  .section#how { background-attachment: scroll; }
+}

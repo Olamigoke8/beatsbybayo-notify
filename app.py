@@ -81,6 +81,15 @@ _CREATE_TABLE = """CREATE TABLE IF NOT EXISTS inquiries (
     booked INTEGER DEFAULT 0
 )"""
 
+_CREATE_TESTIMONIALS = """CREATE TABLE IF NOT EXISTS testimonials (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    name TEXT, event_type TEXT,
+    rating INTEGER DEFAULT 5,
+    testimonial TEXT,
+    status TEXT DEFAULT 'pending'
+)"""
+
 class Database:
     def __init__(self):
         self.url = os.environ.get("DATABASE_URL", "").strip()
@@ -115,6 +124,7 @@ class Database:
         if self.pg:
             with self._pg() as c:
                 c.cursor().execute(self._q(_CREATE_TABLE))
+                c.cursor().execute(self._q(_CREATE_TESTIMONIALS))
         else:
             with self._lock:
                 self._sqlite.execute(self._q(_CREATE_TABLE))
@@ -123,6 +133,7 @@ class Database:
                         self._sqlite.execute(f"ALTER TABLE inquiries ADD COLUMN {_col} {_decl}")
                     except sqlite3.OperationalError:
                         pass  # column already exists
+                self._sqlite.execute(self._q(_CREATE_TESTIMONIALS))
                 self._sqlite.commit()
 
     def execute(self, sql, params=()):
@@ -319,6 +330,70 @@ def booked_dates():
     )
     return {"booked_dates": [r["event_date"] for r in rows]}
 
+class Testimonial(BaseModel):
+    name: str
+    event_type: str = ""
+    rating: int = 5
+    testimonial: str
+    website: str = ""  # honeypot — must be empty
+
+@app.get("/api/testimonials")
+def list_testimonials():
+    """Public: approved testimonials only, newest first."""
+    rows = DB.fetch(
+        "SELECT name, event_type, rating, testimonial, created_at FROM testimonials "
+        "WHERE status='approved' ORDER BY created_at DESC"
+    )
+    return {"testimonials": rows}
+
+@app.post("/api/testimonials")
+async def create_testimonial(t: Testimonial, request: Request):
+    if t.website.strip():
+        return {"ok": True, "id": "spam"}
+    name = t.name.strip()
+    body = t.testimonial.strip()
+    rating = int(t.rating)
+    if len(name) < 2 or len(body) < 5:
+        raise HTTPException(400, "Please add your name and a few words about your experience.")
+    if rating < 1 or rating > 5:
+        rating = 5
+    ip = client_ip(request)
+    if rate_limited(ip):
+        raise HTTPException(429, "Too many requests. Please try again in a few minutes.")
+    tid = secrets.token_hex(8)
+    now = datetime.now(timezone.utc).isoformat()
+    DB.execute(
+        "INSERT INTO testimonials (id, created_at, name, event_type, rating, testimonial, status) "
+        "VALUES (?,?,?,?,?,?, 'pending')",
+        (tid, now, name, t.event_type.strip(), rating, body),
+    )
+    DB.commit()
+    try:
+        await send_review_notify(name, t.event_type.strip(), rating, body)
+    except Exception:
+        pass
+    return {"ok": True, "id": tid, "status": "pending"}
+
+@app.get("/api/admin/testimonials")
+def admin_list_testimonials(request: Request):
+    check_token(request)
+    rows = DB.fetch("SELECT * FROM testimonials ORDER BY created_at DESC")
+    return {"testimonials": rows}
+
+@app.post("/api/admin/testimonials/{tid}/approve")
+def admin_approve_testimonial(tid: str, request: Request):
+    check_token(request)
+    DB.execute("UPDATE testimonials SET status='approved' WHERE id=?", (tid,))
+    DB.commit()
+    return {"ok": True}
+
+@app.post("/api/admin/testimonials/{tid}/reject")
+def admin_reject_testimonial(tid: str, request: Request):
+    check_token(request)
+    DB.execute("UPDATE testimonials SET status='rejected' WHERE id=?", (tid,))
+    DB.commit()
+    return {"ok": True}
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "owner_email": OWNER_EMAIL, "from_email": FROM_EMAIL}
@@ -438,6 +513,26 @@ async def send_sms(inq: Inquiry) -> str:
         return "sent" if data.get("ok") else f"failed:{resp.status_code}"
     return f"failed:{resp.status_code}"
 
+async def send_review_notify(name: str, event_type: str, rating: int, body: str) -> str:
+    """Notify Bayo that a review is awaiting approval."""
+    token = _load_secret("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
+    chat_id = _load_secret("telegram_chat_id", "TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        return "not_configured"
+    stars = "★" * rating + "☆" * (5 - rating)
+    msg = (
+        "*New review awaiting approval — BeatsByBayo*\n\n"
+        f"*From:* {name}\n"
+        f"*Event:* {event_type or '-'}\n"
+        f"*Rating:* {stars}\n"
+        f"*Review:* {body}\n\n"
+        "Approve it in the admin panel to publish."
+    )
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(url, data={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
+    return "sent" if resp.json().get("ok") else f"failed:{resp.status_code}"
+
 @app.get("/api/admin/telegram-updates")
 def telegram_updates(request: Request):
     """Debug: verify token via getMe and list recent updates to discover chat_id."""
@@ -457,6 +552,10 @@ def root():
 @app.get("/admin.html")
 def admin_page():
     return FileResponse("static/admin.html")
+
+@app.get("/review.html")
+def review_page():
+    return FileResponse("static/review.html")
 
 # Serve the static site (logo, css, js) — mounted AFTER all API routes so
 # /api/* still hits the API. When hosted on Render this makes beatsbybayo.com
