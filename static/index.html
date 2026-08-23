@@ -1,21 +1,21 @@
 <!doctype html>
-<html lang="en" data-theme="warm">
+<html lang="en" data-theme="cyan">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>BeatsByBayo | Charlotte DJ &amp; MC — Corporate, Weddings, 50+ &amp; Private Events</title>
     <meta name="description" content="BeatsByBayo — professional DJ and MC for corporate events, weddings, 50+ celebrations and private parties across Charlotte, NC. Top 40, R&B, Hip-Hop, 80s, 90s and Afrobeats." />
-    <meta name="theme-color" content="#1a1613" />
+    <meta name="theme-color" content="#0a141e" />
     <link rel="icon" href="assets/logo-main.jpg" type="image/jpeg" />
     <link rel="apple-touch-icon" href="assets/logo-main.jpg" />
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content="BeatsByBayo | Charlotte DJ & MC" />
     <meta property="og:description" content="Professional DJ and MC for corporate events, 50+ celebrations and private parties in Charlotte, NC." />
-    <meta property="og:image" content="assets/bayo-portrait.jpg" />
+    <meta property="og:image" content="assets/logo-main.jpg" />
 
     <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
-    <link href="https://api.fontshare.com/v2/css?f[]=fraunces@400,500,600,700&f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
+    <link href="https://api.fontshare.com/v2/css?f[]=space-grotesk@400,500,600,700&f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body id="top">
@@ -72,40 +72,76 @@
     </div>
 
     <main>
-      <!-- ============ HERO with inline mini-quote ============ -->
+      <!-- ============ HERO ============ -->
       <section class="hero" id="home">
-        <div class="hero-photo" role="img" aria-label="Bayo DJing at a wedding reception"></div>
-        <div class="hero-scrim" aria-hidden="true"></div>
+        <!-- Ambient DJ graphics -->
+        <div class="hero-bg" aria-hidden="true">
+          <div class="glow glow-cyan"></div>
+          <div class="glow glow-orange"></div>
+          <svg class="hero-grid" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <defs>
+              <pattern id="gridPat" width="10" height="10" patternUnits="userSpaceOnUse">
+                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(0,250,230,.08)" stroke-width=".25"/>
+              </pattern>
+            </defs>
+            <rect width="100" height="100" fill="url(#gridPat)"/>
+          </svg>
+          <div class="eq" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+
         <div class="hero-inner">
           <div class="hero-copy">
-            <p class="kicker">Charlotte, NC · Corporate · Weddings · 50+ · Private</p>
+            <p class="kicker"><span class="live-dot"></span> Charlotte, NC · Corporate · Weddings · 50+ · Private</p>
             <h1 class="display">
               Your event.<br />
-              <span class="gold">Read right.</span>
+              <span class="cyan-gradient">Read right.</span>
             </h1>
             <p class="lead">
               I'm Bayo — a professional DJ &amp; MC who reads the room and plays what your crowd
               actually wants to hear. Top 40, R&amp;B, Hip-Hop, 80s, 90s and Afrobeats,
               programmed live for your night.
             </p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="#quote">Get my quote →</a>
+              <a class="btn btn-ghost" href="#packages">See packages</a>
+            </div>
             <ul class="hero-checks" role="list">
-              <li>Personalized quotes, fast</li>
+              <li>Same-day quote replies</li>
               <li>Custom playlists, no shuffle</li>
               <li>Pro sound &amp; MC</li>
             </ul>
           </div>
 
           <form class="mini-quote" id="miniQuote" aria-labelledby="miniQuoteTitle" novalidate>
-            <h2 class="mini-quote-title" id="miniQuoteTitle">Check my date</h2>
+            <div class="mini-quote-header">
+              <span class="mq-badge">Quick check</span>
+              <h2 class="mini-quote-title" id="miniQuoteTitle">Check my date</h2>
+            </div>
             <p class="mini-quote-sub">Three quick fields. I'll reply with availability and a tailored quote — usually same day.</p>
-            <label>Your name
+
+            <label class="field">
+              <span class="field-label">Your name</span>
               <input required name="name" type="text" autocomplete="name" placeholder="First &amp; last name" />
             </label>
-            <label>Event date
-              <input required name="event-date" type="date" />
+
+            <label class="field field-with-icon">
+              <span class="field-label">Event date</span>
+              <input required name="event-date" type="date" id="miniDate" />
+              <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
             </label>
-            <label>Event type
-              <select required name="event-type">
+
+            <label class="field field-with-icon">
+              <span class="field-label">Event type</span>
+              <select required name="event-type" id="miniType">
                 <option value="">Choose one</option>
                 <option>Corporate Event</option>
                 <option>Wedding</option>
@@ -117,12 +153,21 @@
                 <option>Community Event</option>
                 <option>Other</option>
               </select>
+              <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </label>
+
             <label class="hp-field" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
-            <button class="btn btn-primary btn-wide" type="submit">Continue to quote →</button>
-            <p class="mini-quote-note">We'll only ask for the rest of the details on the next step.</p>
+            <button class="btn btn-primary btn-wide" type="submit">Continue to full quote →</button>
+            <p class="mini-quote-note">Nothing charged — you'll finish the details on the next step.</p>
           </form>
         </div>
+
+        <!-- Waveform divider at bottom -->
+        <svg class="hero-wave" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0,40 Q60,10 120,40 T240,40 T360,40 T480,40 T600,40 T720,40 T840,40 T960,40 T1080,40 T1200,40 T1320,40 T1440,40 L1440,80 L0,80 Z" fill="var(--surface-1)"/>
+        </svg>
       </section>
 
       <!-- ============ PROOF STRIP ============ -->
@@ -140,13 +185,22 @@
       <!-- ============ ABOUT ============ -->
       <section class="section about" id="about">
         <div class="container about-grid">
-          <figure class="about-photo">
-            <img src="assets/bayo-portrait.jpg" alt="Bayo behind the DJ booth at a wedding, wearing the BeatsByBayo polo" width="506" height="900" loading="lazy" />
-            <figcaption>Bayo · Charlotte, NC</figcaption>
-          </figure>
+          <div class="about-visual" aria-hidden="true">
+            <div class="vinyl">
+              <div class="vinyl-ring vinyl-ring-1"></div>
+              <div class="vinyl-ring vinyl-ring-2"></div>
+              <div class="vinyl-ring vinyl-ring-3"></div>
+              <div class="vinyl-label">
+                <span>BEATS</span>
+                <span>BY BAYO</span>
+              </div>
+              <div class="vinyl-shine"></div>
+            </div>
+            <div class="visual-caption">Photo of Bayo coming soon</div>
+          </div>
           <div class="about-copy">
             <p class="kicker">Meet Bayo</p>
-            <h2 class="section-title">A host who reads the room — <span class="gold">not a playlist on shuffle.</span></h2>
+            <h2 class="section-title">A host who reads the room — <span class="cyan">not a playlist on shuffle.</span></h2>
             <p>
               For 25 years I worked as an X-ray tech — a job built on patience, calm under pressure, and paying
               close attention to the person in front of me. BeatsByBayo is that same care, poured into music.
@@ -172,23 +226,37 @@
         <div class="container">
           <div class="section-head center">
             <p class="kicker">What I DJ</p>
-            <h2 class="section-title">Every crowd, <span class="gold">read right.</span></h2>
+            <h2 class="section-title">Every crowd, <span class="cyan">read right.</span></h2>
             <p class="section-lead">Pick your event type — your quote form gets pre-filled instantly. No tab-hopping, no scrolling around.</p>
           </div>
           <div class="event-cards">
             <a class="event-card" href="#quote" data-event="Corporate Event">
+              <svg class="event-icon" viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <rect x="3" y="7" width="18" height="13" rx="1.5"/>
+                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="3" y1="13" x2="21" y2="13"/>
+              </svg>
               <span class="event-num">01</span>
               <h3>Corporate</h3>
               <p>Awards nights, product launches, holiday parties, galas. Clean presentation audio, professional MC, dinner music into a real dance floor.</p>
               <span class="event-cta">Get a corporate quote →</span>
             </a>
             <a class="event-card" href="#quote" data-event="Wedding">
+              <svg class="event-icon" viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <path d="M12 21s-7-4.5-7-11a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 6.5-7 11-7 11z"/>
+              </svg>
               <span class="event-num">02</span>
               <h3>Weddings &amp; Private</h3>
               <p>Ceremony, cocktail hour, reception. Toasts, first dance, parent dances, open floor — programmed and MC'd around your people.</p>
               <span class="event-cta">Get a wedding quote →</span>
             </a>
             <a class="event-card" href="#quote" data-event="50+ Social">
+              <svg class="event-icon" viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M7 14c1 2 3 3 5 3s4-1 5-3"/>
+                <circle cx="9" cy="10" r="1"/>
+                <circle cx="15" cy="10" r="1"/>
+              </svg>
               <span class="event-num">03</span>
               <h3>50 &amp; Up</h3>
               <p>Class reunions, anniversaries, retirement parties, community socials. 70s soul, 80s/90s hits, R&amp;B, Afrobeats — mature, respectful, packed floor.</p>
@@ -198,12 +266,12 @@
         </div>
       </section>
 
-      <!-- ============ PACKAGES COMPARISON ============ -->
+      <!-- ============ PACKAGES ============ -->
       <section class="section" id="packages">
         <div class="container">
           <div class="section-head center">
             <p class="kicker">Packages</p>
-            <h2 class="section-title">Simple options, <span class="gold">built around your event.</span></h2>
+            <h2 class="section-title">Simple options, <span class="cyan">built around your event.</span></h2>
             <p class="section-lead">Pick the level that fits — every button below opens the same quote form, pre-filled with your choice. No surprise fees, quote in writing.</p>
           </div>
           <div class="pkg-compare">
@@ -263,21 +331,54 @@
         </div>
       </section>
 
-      <!-- ============ GALLERY ============ -->
+      <!-- ============ GALLERY (placeholders) ============ -->
       <section class="section section-soft" id="gallery">
         <div class="container">
           <div class="section-head center">
             <p class="kicker">The Vibe</p>
-            <h2 class="section-title">Moments from <span class="gold">the booth.</span></h2>
-            <p class="section-lead">A look at the energy — real events, real dance floors. More photos added as new events wrap.</p>
+            <h2 class="section-title">Moments from <span class="cyan">the booth.</span></h2>
+            <p class="section-lead">Photos from recent events land here — real dance floors, real crowds, real energy. Coming soon.</p>
           </div>
-          <ul class="gallery" role="list">
-            <li class="g-lg"><img src="assets/bayo-portrait.jpg" alt="Bayo at a wedding reception in the BeatsByBayo polo" loading="lazy" /></li>
-            <li><img src="assets/gallery-wedding.jpg" alt="Wedding reception dance floor with string lights" loading="lazy" /></li>
-            <li><img src="assets/gallery-corporate.jpg" alt="Corporate event with cyan and warm uplighting" loading="lazy" /></li>
-            <li><img src="assets/gallery-milestone.jpg" alt="Milestone celebration with confetti and stage lights" loading="lazy" /></li>
+          <p class="gallery-hint">Real event photos will appear here as they're approved for the site.</p>
+          <ul class="gallery-placeholder" role="list">
+            <li class="g-slot g-lg">
+              <div class="g-glyph">
+                <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2"/>
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M7 5l1-2h8l1 2"/>
+                </svg>
+              </div>
+              <span class="g-label">Featured photo</span>
+            </li>
+            <li class="g-slot">
+              <div class="g-glyph">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </div>
+              <span class="g-label">Photo coming soon</span>
+            </li>
+            <li class="g-slot">
+              <div class="g-glyph">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </div>
+              <span class="g-label">Photo coming soon</span>
+            </li>
+            <li class="g-slot">
+              <div class="g-glyph">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </div>
+              <span class="g-label">Photo coming soon</span>
+            </li>
           </ul>
-          <p class="gallery-note">The venue &amp; energy shots above are representative event styles — real event photos get swapped in as they happen.</p>
         </div>
       </section>
 
@@ -286,7 +387,7 @@
         <div class="container">
           <div class="section-head center">
             <p class="kicker">Client Stories</p>
-            <h2 class="section-title">Kind words from <span class="gold">the dance floor.</span></h2>
+            <h2 class="section-title">Kind words from <span class="cyan">the dance floor.</span></h2>
           </div>
           <div class="reviews-grid" id="testimonialList" aria-live="polite">
             <p class="reviews-empty">Client stories coming soon — be the first to share yours. <a href="/review.html">Leave a review</a>.</p>
@@ -302,10 +403,12 @@
       <section class="section section-soft" id="mixes">
         <div class="container narrow center">
           <p class="kicker">Mixes</p>
-          <h2 class="section-title">Hear the <span class="gold">sound</span> before you book.</h2>
+          <h2 class="section-title">Hear the <span class="cyan">sound</span> before you book.</h2>
           <p class="section-lead">A rotating set of live sets, genre deep-dives and crowd recordings will live right here. Check back shortly — or tell me you'd like a sample when you request your quote.</p>
           <div class="mixes-placeholder">
-            <span class="mix-glyph" aria-hidden="true">♪</span>
+            <div class="mix-eq" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
             <p>Mixes dropping soon</p>
             <a class="btn btn-outline" href="#quote">Ask Bayo for a sample</a>
           </div>
@@ -344,18 +447,18 @@
 
           <form class="quote-form" id="bookingForm" novalidate>
             <div class="form-row">
-              <label>Full name
+              <label class="field"><span class="field-label">Full name</span>
                 <input required name="name" type="text" autocomplete="name" placeholder="Your name" />
               </label>
-              <label>Email
+              <label class="field"><span class="field-label">Email</span>
                 <input required name="email" type="email" autocomplete="email" placeholder="you@example.com" />
               </label>
             </div>
             <div class="form-row">
-              <label>Phone
+              <label class="field"><span class="field-label">Phone</span>
                 <input required name="phone" type="tel" autocomplete="tel" placeholder="(704) 555-0123" />
               </label>
-              <label>Event type
+              <label class="field field-with-icon"><span class="field-label">Event type</span>
                 <select required name="event-type" id="eventTypeSelect">
                   <option value="">Select one</option>
                   <option>Corporate Event</option>
@@ -368,21 +471,26 @@
                   <option>Community Event</option>
                   <option>Other</option>
                 </select>
+                <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </label>
             </div>
             <div class="form-row">
-              <label>Event date
+              <label class="field field-with-icon"><span class="field-label">Event date</span>
                 <input required name="event-date" type="date" />
+                <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
               </label>
-              <label>Venue / location
+              <label class="field"><span class="field-label">Venue / location</span>
                 <input required name="venue" type="text" placeholder="Venue or city" />
               </label>
             </div>
             <div class="form-row">
-              <label>Guest count
+              <label class="field"><span class="field-label">Guest count</span>
                 <input name="guest-count" type="number" min="1" placeholder="Approx." />
               </label>
-              <label>Package interest
+              <label class="field field-with-icon"><span class="field-label">Package interest</span>
                 <select name="package" id="packageSelect">
                   <option value="">Not sure yet</option>
                   <option value="Basic">Basic</option>
@@ -390,6 +498,7 @@
                   <option value="Premium">Premium</option>
                   <option value="Custom / Last-Minute">Custom / Last-Minute</option>
                 </select>
+                <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </label>
             </div>
 
@@ -405,7 +514,7 @@
               </div>
             </fieldset>
 
-            <label>Anything else? (optional)
+            <label class="field"><span class="field-label">Anything else? (optional)</span>
               <textarea name="message" rows="3" placeholder="Music style, must-plays, do-not-plays, last-minute booking notes…"></textarea>
             </label>
 

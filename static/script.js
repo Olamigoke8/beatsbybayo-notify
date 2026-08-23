@@ -45,20 +45,20 @@
   function setMenu(open){
     if (!menu || !toggle) return;
     if (open){
-      menu.classList.add("is-open");
+      menu.classList.add("open");
       menu.setAttribute("aria-hidden","false");
       toggle.classList.add("is-open");
       toggle.setAttribute("aria-expanded","true");
       document.body.style.overflow = "hidden";
     } else {
-      menu.classList.remove("is-open");
+      menu.classList.remove("open");
       menu.setAttribute("aria-hidden","true");
       toggle.classList.remove("is-open");
       toggle.setAttribute("aria-expanded","false");
       document.body.style.overflow = "";
     }
   }
-  on(toggle, "click", function(){ setMenu(!menu.classList.contains("is-open")); });
+  on(toggle, "click", function(){ setMenu(!menu.classList.contains("open")); });
   on(closeBtn, "click", function(){ setMenu(false); });
   $$(".mobile-link").forEach(function(a){ on(a, "click", function(){ setMenu(false); }); });
 
