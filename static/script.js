@@ -1,444 +1,254 @@
-/* ============================================================
-   BeatsByBayo — interactions
-   - theme toggle
-   - scroll-aware header + active nav tab
-   - booking form -> prefilled WhatsApp / Email (no backend, no third-party form service)
-   ============================================================ */
-(function () {
-  'use strict';
+/* BeatsByBayo — redesign JS
+   - Sticky header shadow toggle
+   - Mobile menu open/close
+   - Event card + package button deep-link prefill (writes to full form)
+   - Hero mini-quote hands off to full form
+   - Add-on chips composed into the message field on submit
+   - WhatsApp / email fallback links stay in sync
+   - Booking form submit -> /api/inquiries (falls back to WA/email if backend missing)
+   - Testimonials loader
+*/
+(function(){
+  "use strict";
 
-  /* ---------- Theme toggle ---------- */
-  (function () {
-    var root = document.documentElement;
-    var toggle = document.querySelector('[data-theme-toggle]');
-    var current = 'dark';
-    root.setAttribute('data-theme', current);
-    setIcon(current);
-
-    if (toggle) {
-      toggle.addEventListener('click', function () {
-        current = current === 'dark' ? 'light' : 'dark';
-        root.setAttribute('data-theme', current);
-        setIcon(current);
-      });
-    }
-
-    function setIcon(mode) {
-      if (!toggle) return;
-      toggle.setAttribute('aria-label', 'Switch to ' + (mode === 'dark' ? 'light' : 'dark') + ' mode');
-      toggle.innerHTML =
-        mode === 'dark'
-          ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
-          : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
-    }
-  })();
-
-  /* ---------- Header shadow + active nav ---------- */
-  var header = document.getElementById('header');
-  var sections = ['top', 'about', 'packages', 'gallery', 'reviews', 'mixes', 'book']
-    .map(function (id) {
-      return document.getElementById(id);
-    })
-    .filter(Boolean);
-  var tabs = Array.prototype.slice.call(document.querySelectorAll('.nav-tabs a'));
-
-  function onScroll() {
-    if (header) header.classList.toggle('scrolled', window.scrollY > 8);
-    var pos = window.scrollY + window.innerHeight * 0.35;
-    var activeId = sections[0] ? sections[0].id : null;
-    sections.forEach(function (sec) {
-      if (sec.offsetTop <= pos) activeId = sec.id;
-    });
-    tabs.forEach(function (a) {
-      var match = a.getAttribute('href') === '#' + (activeId === 'top' ? 'top' : activeId);
-      a.classList.toggle('active', match);
-    });
+  // ---------- API detection ----------
+  var API_BASE = "__PORT_8000__";
+  if (API_BASE.indexOf("__PORT_8000__") !== -1) {
+    // Preview sandbox / production same-origin
+    API_BASE = "";
   }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onScroll, { passive: true });
-  onScroll();
+  var API_INQUIRIES    = API_BASE + "/api/inquiries";
+  var API_TESTIMONIALS = API_BASE + "/api/testimonials";
 
-  /* ---------- Preselect package from package buttons ---------- */
-  var select = document.getElementById('packageSelect');
-  Array.prototype.forEach.call(document.querySelectorAll('[data-pkg]'), function (link) {
-    link.addEventListener('click', function () {
-      if (!select) return;
-      var val = link.getAttribute('data-pkg');
-      Array.prototype.forEach.call(select.options, function (opt) {
-        opt.selected = opt.value === val;
-      });
+  // ---------- Helpers ----------
+  function $(sel, ctx){ return (ctx||document).querySelector(sel); }
+  function $$(sel, ctx){ return Array.prototype.slice.call((ctx||document).querySelectorAll(sel)); }
+  function on(el, ev, fn){ if(el) el.addEventListener(ev, fn); }
+
+  // ---------- Year ----------
+  var y = $("#year"); if (y) y.textContent = new Date().getFullYear();
+
+  // ---------- Sticky header shadow ----------
+  var hdr = $("#siteHeader");
+  function updateHeader(){
+    if (!hdr) return;
+    if (window.scrollY > 12) hdr.classList.add("is-scrolled");
+    else hdr.classList.remove("is-scrolled");
+  }
+  window.addEventListener("scroll", updateHeader, { passive: true });
+  updateHeader();
+
+  // ---------- Mobile menu ----------
+  var menu = $("#mobileMenu");
+  var toggle = $("#menuToggle");
+  var closeBtn = $("#menuClose");
+  function setMenu(open){
+    if (!menu || !toggle) return;
+    if (open){
+      menu.classList.add("is-open");
+      menu.setAttribute("aria-hidden","false");
+      toggle.classList.add("is-open");
+      toggle.setAttribute("aria-expanded","true");
+      document.body.style.overflow = "hidden";
+    } else {
+      menu.classList.remove("is-open");
+      menu.setAttribute("aria-hidden","true");
+      toggle.classList.remove("is-open");
+      toggle.setAttribute("aria-expanded","false");
+      document.body.style.overflow = "";
+    }
+  }
+  on(toggle, "click", function(){ setMenu(!menu.classList.contains("is-open")); });
+  on(closeBtn, "click", function(){ setMenu(false); });
+  $$(".mobile-link").forEach(function(a){ on(a, "click", function(){ setMenu(false); }); });
+
+  // ---------- Deep-link prefill for full form ----------
+  var eventSelect   = $("#eventTypeSelect");
+  var packageSelect = $("#packageSelect");
+  var bookingForm   = $("#bookingForm");
+
+  function prefillForm(opts){
+    if (!bookingForm) return;
+    if (opts.eventType && eventSelect){
+      // Try to match option; if none matches, keep dropdown but we'll still send in message
+      var match = Array.prototype.find.call(eventSelect.options, function(o){ return o.value === opts.eventType || o.textContent === opts.eventType; });
+      if (match) eventSelect.value = match.value || match.textContent;
+    }
+    if (opts.pkg && packageSelect){
+      var pmatch = Array.prototype.find.call(packageSelect.options, function(o){ return o.value === opts.pkg; });
+      if (pmatch) packageSelect.value = pmatch.value;
+    }
+    if (opts.name){
+      var nameEl = bookingForm.querySelector('[name="name"]');
+      if (nameEl && !nameEl.value) nameEl.value = opts.name;
+    }
+    if (opts.date){
+      var dateEl = bookingForm.querySelector('[name="event-date"]');
+      if (dateEl && !dateEl.value) dateEl.value = opts.date;
+    }
+    // Focus first empty required field
+    var firstEmpty = $$("input[required], select[required]", bookingForm).filter(function(el){ return !el.value; })[0];
+    if (firstEmpty){
+      // Focus after scroll settles
+      setTimeout(function(){ firstEmpty.focus({ preventScroll: true }); }, 500);
+    }
+  }
+
+  // Event cards
+  $$("[data-event]").forEach(function(el){
+    on(el, "click", function(){
+      prefillForm({ eventType: el.getAttribute("data-event") });
+    });
+  });
+  // Package buttons
+  $$("[data-pkg]").forEach(function(el){
+    on(el, "click", function(){
+      prefillForm({ pkg: el.getAttribute("data-pkg") });
     });
   });
 
-  /* ---------- Footer year ---------- */
-  var year = document.getElementById('year');
-  if (year) year.textContent = new Date().getFullYear();
-
-  /* ---------- Booking form ---------- */
-  var form = document.getElementById('bookingForm');
-  var success = document.getElementById('formSuccess');
-  var WHATSAPP = '17047042179';
-  var EMAIL = 'beatsbybayo@gmail.com';
-
-  function val(name) {
-    var el = form.querySelector('[name="' + name + '"]');
-    return el ? el.value.trim() : '';
-  }
-
-  // Selected add-ons (chips) get composed into the message so the backend
-  // schema stays unchanged.
-  function addonText() {
-    var chips = form.querySelectorAll('input[name="addon"]:checked');
-    var arr = [];
-    Array.prototype.forEach.call(chips, function (c) { arr.push(c.value); });
-    return arr.length ? arr.join(', ') : '';
-  }
-  function composedMessage() {
-    var base = val('message');
-    var ad = addonText();
-    if (!ad) return base;
-    var note = 'Add-ons: ' + ad;
-    return base ? base + '\n' + note : note;
-  }
-
-  function buildMessage() {
-    var lines = [];
-    lines.push('New event request — BeatsByBayo');
-    lines.push('');
-    lines.push('Name: ' + val('name'));
-    lines.push('Email: ' + val('email'));
-    lines.push('Phone: ' + val('phone'));
-    lines.push('Event type: ' + val('event-type'));
-    lines.push('Event date: ' + val('event-date'));
-    lines.push('Venue / location: ' + val('venue'));
-    if (val('guest-count')) lines.push('Guest count: ' + val('guest-count'));
-    lines.push('Package interest: ' + (val('package') || 'Not selected'));
-    if (composedMessage()) {
-      lines.push('');
-      lines.push('Notes: ' + composedMessage());
-    }
-    return lines.join('\n');
-  }
-
-  function validate() {
-    var required = ['name', 'email', 'phone', 'event-type', 'event-date', 'venue'];
-    var ok = true;
-    required.forEach(function (name) {
-      var el = form.querySelector('[name="' + name + '"]');
-      if (el && !el.value.trim()) {
-        ok = false;
-        if (el) el.style.borderColor = 'var(--color-orange)';
-      } else if (el) {
-        el.style.borderColor = '';
-      }
+  // ---------- Hero mini-quote -> full form ----------
+  var mini = $("#miniQuote");
+  on(mini, "submit", function(e){
+    e.preventDefault();
+    var fd = new FormData(mini);
+    if (fd.get("website")) return; // honeypot
+    prefillForm({
+      name: fd.get("name"),
+      date: fd.get("event-date"),
+      eventType: fd.get("event-type"),
     });
-    var email = val('email');
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) ok = false;
-    return ok;
+    // Scroll to the full form
+    var quote = $("#quote");
+    if (quote) quote.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  // ---------- Compose add-on chips into message ----------
+  function composedMessage(fd){
+    var addons = fd.getAll("addon");
+    var base = (fd.get("message") || "").trim();
+    if (addons.length){
+      var line = "Add-ons requested: " + addons.join(", ") + ".";
+      base = base ? (base + "\n\n" + line) : line;
+    }
+    return base;
   }
 
-  function showSuccess(channel) {
-    if (!success) return;
-    success.hidden = false;
-    success.textContent =
-      'Opening ' + channel + ' with your details. If nothing happened, call or text 704-704-2179 directly.';
+  // ---------- WhatsApp / email fallbacks ----------
+  function buildFallbackText(fd){
+    var lines = ["Hi Bayo, requesting a quote via BeatsByBayo:"];
+    var fields = [
+      ["Name", fd.get("name")],
+      ["Email", fd.get("email")],
+      ["Phone", fd.get("phone")],
+      ["Event", fd.get("event-type")],
+      ["Date", fd.get("event-date")],
+      ["Venue", fd.get("venue")],
+      ["Guests", fd.get("guest-count")],
+      ["Package", fd.get("package")],
+    ];
+    fields.forEach(function(pair){
+      if (pair[1]) lines.push(pair[0] + ": " + pair[1]);
+    });
+    var addons = fd.getAll("addon");
+    if (addons.length) lines.push("Add-ons: " + addons.join(", "));
+    var msg = (fd.get("message") || "").trim();
+    if (msg) lines.push("\nNotes: " + msg);
+    return lines.join("\n");
   }
 
-  // API endpoint — if served same-origin (Render / beatsbybayo.com), use a
-  // relative path; otherwise the __PORT_8000__ token is rewritten to the
-  // sandbox proxy by deploy_website for the Perplexity preview.
-  var API = '__PORT_8000__/api/inquiries';
-  if (API.indexOf('__PORT_8000__') !== -1) { API = '/api/inquiries'; }
-
-  function showMsg(text, ok) {
-    if (!success) return;
-    success.hidden = false;
-    success.className = 'form-success ' + (ok ? 'ok' : 'err');
-    success.textContent = text;
+  function syncFallback(){
+    if (!bookingForm) return;
+    var fd = new FormData(bookingForm);
+    var body = buildFallbackText(fd);
+    var wa = "https://wa.me/17047042179?text=" + encodeURIComponent(body);
+    var mailto = "mailto:beatsbybayo@gmail.com?subject=" +
+      encodeURIComponent("Quote request — " + (fd.get("event-type") || "BeatsByBayo")) +
+      "&body=" + encodeURIComponent(body);
+    var waBtn    = $("#whatsappBtn");   if (waBtn) waBtn.href = wa;
+    var mailBtn  = $("#emailBtn");      if (mailBtn) mailBtn.href = mailto;
+    var waQuick  = $("#waQuick");       if (waQuick) waQuick.href = wa;
+  }
+  if (bookingForm){
+    ["input","change"].forEach(function(ev){
+      bookingForm.addEventListener(ev, syncFallback);
+    });
+    syncFallback();
   }
 
-  function payload() {
-    return {
-      name: val('name'),
-      email: val('email'),
-      phone: val('phone'),
-      event_type: val('event-type'),
-      event_date: val('event-date'),
-      venue: val('venue'),
-      guest_count: val('guest-count'),
-      package: val('package'),
-      message: composedMessage(),
-      website: val('website'), // honeypot
+  // ---------- Booking form submit ----------
+  on(bookingForm, "submit", function(e){
+    e.preventDefault();
+    var success = $("#formSuccess");
+    var fd = new FormData(bookingForm);
+    if (fd.get("website")){ // honeypot
+      return;
+    }
+    var payload = {
+      name:         fd.get("name") || "",
+      email:        fd.get("email") || "",
+      phone:        fd.get("phone") || "",
+      event_type:   fd.get("event-type") || "",
+      event_date:   fd.get("event-date") || "",
+      venue:        fd.get("venue") || "",
+      guest_count:  fd.get("guest-count") ? Number(fd.get("guest-count")) : null,
+      package:      fd.get("package") || "",
+      message:      composedMessage(fd),
+      website:      ""
     };
-  }
+    var btn = bookingForm.querySelector('button[type="submit"]');
+    if (btn){ btn.disabled = true; btn.dataset.orig = btn.textContent; btn.textContent = "Sending…"; }
 
-  if (form) {
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      if (!validate()) {
-        showMsg('Please complete the highlighted fields.', false);
-        return;
+    fetch(API_INQUIRIES, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(function(r){
+      if (!r.ok) throw new Error("network");
+      return r.json();
+    }).then(function(){
+      if (success){
+        success.hidden = false;
+        success.textContent = "Thanks! Your request is in — Bayo will reply shortly with availability and a tailored quote.";
       }
-      var btn = form.querySelector('[type="submit"]');
-      if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = 'Sending…'; }
-      showMsg('Sending your request…', false);
-
-      fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload()),
-      })
-        .then(function (r) { return r.json().then(function (d) { return { status: r.status, data: d }; }); })
-        .then(function (res) {
-          if (res.data && res.data.ok) {
-            form.reset();
-            showMsg('Request sent. Bayo will reach out shortly. For anything urgent, call or text 704-704-2179.', true);
-          } else {
-            throw new Error('not ok');
-          }
-        })
-        .catch(function () {
-          // Fallback: open WhatsApp with the details so the lead is never lost.
-          var msg = buildMessage();
-          var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(msg);
-          showMsg('Could not reach the server — opening WhatsApp instead. If nothing happens, call or text 704-704-2179.', false);
-          window.open(url, '_blank', 'noopener');
-        })
-        .finally(function () {
-          if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || 'Send my request'; }
-        });
-    });
-
-    // Manual fallback buttons (WhatsApp / email)
-    var waBtn = document.getElementById('whatsappBtn');
-    if (waBtn) {
-      waBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        if (!validate()) { showMsg('Please complete the highlighted fields.', false); return; }
-        window.open('https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(buildMessage()), '_blank', 'noopener');
-      });
-    }
-    var emailBtn = document.getElementById('emailBtn');
-    if (emailBtn) {
-      emailBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        if (!validate()) { showMsg('Please complete the highlighted fields.', false); return; }
-        var msg = buildMessage();
-        var subject = 'Event request — ' + val('event-type') + ' — ' + val('event-date');
-        window.location.href = 'mailto:' + EMAIL + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(msg);
-      });
-    }
-
-    // One-tap WhatsApp quick lead — works even before the whole form is filled.
-    var waQuick = document.getElementById('waQuick');
-    if (waQuick) {
-      waQuick.addEventListener('click', function (e) {
-        e.preventDefault();
-        var parts = ['Hi Bayo! I\'d like to check availability'];
-        var et = val('event-type'), ed = val('event-date'), gc = val('guest-count'), v = val('venue');
-        if (et) parts.push('for a ' + et);
-        if (ed) parts.push('on ' + ed);
-        if (gc) parts.push('(~' + gc + ' guests)');
-        if (v) parts.push('at ' + v);
-        var msg = parts.join(' ') + '.';
-        window.open('https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
-        if (success) { success.hidden = false; success.className = 'form-success ok'; success.textContent = 'Opening WhatsApp — Bayo will reply there shortly.'; }
-      });
-    }
-  }
-
-  /* ---------- Mobile full-screen menu ---------- */
-  var _menuToggle = document.getElementById('menuToggle');
-  var _mobileMenu = document.getElementById('mobileMenu');
-  if (_menuToggle && _mobileMenu) {
-    var _menuClose = document.getElementById('menuClose');
-    function _openMenu() {
-      _mobileMenu.classList.add('is-open');
-      _mobileMenu.setAttribute('aria-hidden', 'false');
-      _menuToggle.setAttribute('aria-expanded', 'true');
-      document.body.classList.add('menu-open');
-      document.body.style.overflow = 'hidden';
-    }
-    function _closeMenu() {
-      _mobileMenu.classList.remove('is-open');
-      _mobileMenu.setAttribute('aria-hidden', 'true');
-      _menuToggle.setAttribute('aria-expanded', 'false');
-      document.body.classList.remove('menu-open');
-      document.body.style.overflow = '';
-    }
-    _menuToggle.addEventListener('click', function () {
-      if (_mobileMenu.classList.contains('is-open')) _closeMenu(); else _openMenu();
-    });
-    if (_menuClose) _menuClose.addEventListener('click', _closeMenu);
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && _mobileMenu.classList.contains('is-open')) _closeMenu();
-    });
-    Array.prototype.forEach.call(_mobileMenu.querySelectorAll('a'), function (a) {
-      a.addEventListener('click', _closeMenu);
-    });
-  }
-
-  /* ---------- Events tabs ---------- */
-  (function () {
-    var tabs = document.querySelectorAll('.events-tab');
-    var panels = document.querySelectorAll('.events-panel');
-    if (!tabs.length) return;
-    function activate(tab) {
-      tabs.forEach(function (t) {
-        var on = t === tab;
-        t.classList.toggle('is-active', on);
-        t.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-      var pid = tab.getAttribute('aria-controls');
-      panels.forEach(function (p) {
-        var on = p.id === pid;
-        p.classList.toggle('is-active', on);
-        p.hidden = !on;
-      });
-    }
-    tabs.forEach(function (t) {
-      t.addEventListener('click', function () { activate(t); });
-    });
-    var deep = { '#corporate': 'tab-corporate', '#weddings': 'tab-weddings', '#fifty-plus': 'tab-fifty' };
-    function deepLink() {
-      var tid = deep[location.hash];
-      if (!tid) return;
-      var tab = document.getElementById(tid);
-      var ev = document.getElementById('events');
-      if (!tab || !ev) return;
-      activate(tab);
-      ev.scrollIntoView({ behavior: 'smooth' });
-    }
-    window.addEventListener('hashchange', deepLink);
-    deepLink();
-  })();
-
-  /* ---------- Testimonials (public, approved only) ---------- */
-  (function () {
-    var el = document.getElementById('testimonialList');
-    if (!el) return;
-    function esc(s) {
-      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-      });
-    }
-    function renderEmpty() {
-      el.innerHTML = '<p class="reviews-empty">Client stories coming soon — be the first to share yours. <a href="/review.html">Leave a review</a>.</p>';
-    }
-    fetch('/api/testimonials').then(function (r) { return r.json(); }).then(function (data) {
-      var items = (data && data.testimonials) || [];
-      if (!items.length) { renderEmpty(); return; }
-      el.innerHTML = items.map(function (t) {
-        var r = Math.max(1, Math.min(5, parseInt(t.rating || 5, 10) || 5));
-        var stars = '★'.repeat(r) + '☆'.repeat(5 - r);
-        return '<figure class="review-card"><div class="review-stars">' + stars + '</div><blockquote>' + esc(t.testimonial) + '</blockquote><figcaption><strong>' + esc(t.name) + '</strong>' + (t.event_type ? '<span>' + esc(t.event_type) + '</span>' : '') + '</figcaption></figure>';
-      }).join('');
-    }).catch(renderEmpty);
-  })();
-
-  /* ---------- Package vertical tabs ---------- */
-  (function () {
-    var tabs = document.querySelectorAll('.pkg-vtab');
-    var panels = document.querySelectorAll('.pkg-vtab-content');
-    if (!tabs.length) return;
-    function activate(tab) {
-      tabs.forEach(function (t) {
-        var on = t === tab;
-        t.classList.toggle('is-active', on);
-        t.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-      var pid = tab.getAttribute('aria-controls');
-      panels.forEach(function (p) {
-        var on = p.id === pid;
-        p.classList.toggle('is-active', on);
-        p.hidden = !on;
-      });
-    }
-    tabs.forEach(function (t) { t.addEventListener('click', function () { activate(t); }); });
-    // Deep-link: ?pkg=signature preselects a package tab.
-    var m = /pkg=([a-z]+)/i.exec(location.search);
-    if (m) {
-      var tab = document.getElementById('pkgtab-' + m[1]);
-      if (tab) activate(tab);
-    }
-  })();
-
-  /* ---------- Add-on chip highlight (broad-browser support) ---------- */
-  (function () {
-    var chips = document.querySelectorAll('.chip input[type="checkbox"]');
-    Array.prototype.forEach.call(chips, function (box) {
-      function sync() { if (box.closest) box.closest('.chip').classList.toggle('is-checked', box.checked); }
-      sync();
-      box.addEventListener('change', sync);
-    });
-  })();
-
-  /* ---------- Last-minute inline form ---------- */
-  (function () {
-    var toggle = document.getElementById('lastminToggle');
-    var form = document.getElementById('lastminForm');
-    if (!toggle || !form) return;
-    var success = document.getElementById('lastminSuccess');
-    toggle.addEventListener('click', function () {
-      var open = form.hidden;
-      form.hidden = !open;
-      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-      if (open) form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-    function val(name) {
-      var el = form.querySelector('[name="' + name + '"]');
-      return el ? el.value.trim() : '';
-    }
-    function validate() {
-      var ok = true;
-      ['name', 'email', 'phone', 'event-date', 'venue'].forEach(function (n) {
-        var el = form.querySelector('[name="' + n + '"]');
-        if (el && !el.value.trim()) { ok = false; el.style.borderColor = 'var(--color-orange)'; }
-        else if (el) { el.style.borderColor = ''; }
-      });
-      var em = val('email');
-      if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) ok = false;
-      return ok;
-    }
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      if (val('website')) return; // honeypot
-      if (!validate()) {
-        if (success) { success.hidden = false; success.className = 'form-success err'; success.textContent = 'Please complete the highlighted fields.'; }
-        return;
+      bookingForm.reset();
+      syncFallback();
+      if (btn){ btn.disabled = false; btn.textContent = btn.dataset.orig || "Send my request"; }
+    }).catch(function(){
+      if (success){
+        success.hidden = false;
+        success.textContent = "Couldn't send from the site right now — please tap the WhatsApp or email link below and your details will be filled in.";
+        success.style.background = "rgba(178,106,47,.14)";
+        success.style.color = "#b26a2f";
       }
-      var btn = form.querySelector('[type="submit"]');
-      if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = 'Sending…'; }
-      if (success) { success.hidden = false; success.className = 'form-success'; success.textContent = 'Sending your last-minute request…'; }
-      fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: val('name'), email: val('email'), phone: val('phone'),
-          event_type: val('event-type') || 'Last-Minute',
-          event_date: val('event-date'), venue: val('venue'),
-          package: val('package') || 'Last-Minute (within 14 days)',
-          message: val('message'), website: val('website')
-        })
-      })
-        .then(function (r) { return r.json().then(function (d) { return { status: r.status, data: d }; }); })
-        .then(function (res) {
-          if (res.data && res.data.ok) {
-            form.reset();
-            if (success) { success.hidden = false; success.className = 'form-success ok'; success.textContent = 'Last-minute request sent. Bayo will reach out shortly. For anything urgent, call or text 704-704-2179.'; }
-          } else { throw new Error('not ok'); }
-        })
-        .catch(function () {
-          var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(
-            'Hi Bayo! Last-minute DJ request — ' + val('name') + ', ' + val('event-date') + ' at ' + val('venue') + '.'
-          );
-          if (success) { success.hidden = false; success.className = 'form-success err'; success.textContent = 'Could not reach the server — opening WhatsApp instead. If nothing happens, call or text 704-704-2179.'; }
-          window.open(url, '_blank', 'noopener');
-        })
-        .finally(function () {
-          if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || 'Send last-minute request'; }
-        });
+      if (btn){ btn.disabled = false; btn.textContent = btn.dataset.orig || "Send my request"; }
     });
-  })();
+  });
+
+  // ---------- Testimonials ----------
+  function loadTestimonials(){
+    var wrap = $("#testimonialList");
+    if (!wrap) return;
+    fetch(API_TESTIMONIALS)
+      .then(function(r){ if (!r.ok) throw new Error("no api"); return r.json(); })
+      .then(function(data){
+        var items = (data && data.testimonials) || (Array.isArray(data) ? data : []);
+        if (!items.length) return; // leave empty state
+        wrap.innerHTML = "";
+        items.slice(0, 6).forEach(function(t){
+          var card = document.createElement("article");
+          card.className = "review-card";
+          var stars = "★★★★★".slice(0, Math.max(1, Math.min(5, t.rating || 5)));
+          card.innerHTML =
+            '<div class="review-stars" aria-label="' + (t.rating || 5) + ' out of 5 stars">' + stars + '</div>' +
+            '<p class="review-body">"' + (t.testimonial || "").replace(/</g,"&lt;") + '"</p>' +
+            '<p class="review-name">— ' + (t.name || "Client").replace(/</g,"&lt;") +
+            (t.event_type ? ' · ' + t.event_type.replace(/</g,"&lt;") : "") + '</p>';
+          wrap.appendChild(card);
+        });
+      })
+      .catch(function(){ /* leave empty state */ });
+  }
+  loadTestimonials();
 
 })();
