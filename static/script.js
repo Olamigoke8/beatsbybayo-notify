@@ -180,8 +180,8 @@
     var payload = {
       name: fd.get("name")||"", email: fd.get("email")||"", phone: fd.get("phone")||"",
       event_type: fd.get("event-type")||"", event_date: fd.get("event-date")||"",
-      venue: "", guest_count: null, package: fd.get("package")||"",
-      message: (fd.get("message")||"").trim(), website: ""
+      venue: "", guest_count: fd.get("guest-count") ? String(fd.get("guest-count")) : "",
+      package: fd.get("package")||"", message: (fd.get("message")||"").trim(), website: ""
     };
     fetch(API_INQUIRIES, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) })
       .then(function(r){ if(!r.ok) throw new Error("network"); return r.json(); })
@@ -225,7 +225,7 @@
     var payload = {
       name: fd.get("name")||"", email: fd.get("email")||"", phone: fd.get("phone")||"",
       event_type: fd.get("event-type")||"", event_date: fd.get("event-date")||"",
-      venue: fd.get("venue")||"", guest_count: fd.get("guest-count") ? Number(fd.get("guest-count")) : null,
+      venue: fd.get("venue")||"", guest_count: fd.get("guest-count") ? String(fd.get("guest-count")) : "",
       package: fd.get("package")||"", message: composedMessage(fd), website: ""
     };
     var btn = bookingForm.querySelector('button[type="submit"]');
