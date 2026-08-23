@@ -1640,3 +1640,289 @@ section[id] { scroll-margin-top: 84px; }
   .gallery-grid { grid-template-columns: 1fr; }
   .section#how { background-attachment: scroll; }
 }
+
+/* ============================================================
+   NEW COMPONENTS — consolidation pass
+   ============================================================ */
+
+/* ---------- Hero: music genre chips ---------- */
+.hero-genres-label {
+  text-align: center;
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  margin-top: var(--space-6);
+}
+.hero-genres {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin-top: var(--space-3);
+}
+.hero-genres li {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  background: rgba(18, 18, 20, 0.55);
+  backdrop-filter: blur(4px);
+}
+[data-theme='light'] .hero-genres li { background: var(--color-surface); }
+
+/* ---------- About (consolidated About + Why + What I DJ) ---------- */
+.about-row {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: var(--space-12);
+  align-items: center;
+  margin-top: var(--space-10);
+}
+.about-portrait { display: flex; justify-content: center; }
+.portrait-frame {
+  width: 220px;
+  height: 220px;
+  border-radius: var(--radius-full);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: radial-gradient(circle at 32% 28%, var(--color-cyan-soft), var(--color-surface) 72%);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+.portrait-monogram {
+  font-family: var(--font-display);
+  font-size: 4.5rem;
+  font-weight: 600;
+  color: var(--color-cyan);
+  line-height: 1;
+}
+.portrait-soon {
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+.about-row .value-grid { grid-template-columns: repeat(2, 1fr); }
+.events-block { margin-top: var(--space-16); }
+
+/* single-column split (corporate panel, no aside) */
+.split.single { grid-template-columns: 1fr; max-width: 64ch; }
+
+/* ---------- Package vertical tabs ---------- */
+.pkg-vtabs {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+.pkg-vtabs-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.pkg-vtab {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+.pkg-vtab:hover { border-color: var(--color-cyan); color: var(--color-text); }
+.pkg-vtab.is-active {
+  border-color: var(--color-cyan);
+  color: var(--color-text);
+  background: var(--color-cyan-soft);
+}
+.pkg-vtab-name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+.pkg-vtab-sub {
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  color: var(--color-text-faint);
+  text-transform: uppercase;
+}
+.pkg-vtabs-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-10);
+  box-shadow: var(--shadow-card);
+  min-height: 320px;
+}
+.pkg-vtab-content { display: none; }
+.pkg-vtab-content.is-active { display: block; }
+.pkg-vtab-content .check-list { margin-top: var(--space-5); }
+.pkg-vtab-content .btn { margin-top: var(--space-6); }
+
+/* ---------- Last-minute inline form ---------- */
+.lastmin-card {
+  margin-top: var(--space-10);
+  padding: var(--space-10);
+  background: var(--color-surface-offset);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.lastmin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+.lastmin-head h3 { font-size: var(--text-xl); margin: var(--space-2) 0; }
+.lastmin-head p { color: var(--color-text-muted); max-width: 46ch; }
+.lastmin-form {
+  margin-top: var(--space-8);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  gap: var(--space-4);
+}
+.lastmin-form label {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.lastmin-form input,
+.lastmin-form textarea {
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: 0.7rem 0.9rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--text-base);
+  font-family: var(--font-body);
+}
+.lastmin-form input:focus,
+.lastmin-form textarea:focus {
+  outline: none;
+  border-color: var(--color-cyan);
+}
+.lastmin-form .form-row { gap: var(--space-4); }
+.lastmin-form .form-actions { margin-top: var(--space-2); }
+
+/* ---------- Add-on chips (booking form) ---------- */
+.addon-chips {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  background: var(--color-surface);
+}
+.addon-chips legend {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  padding: 0 var(--space-2);
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+.chip:hover { border-color: var(--color-cyan); color: var(--color-text); }
+.chip input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.chip:has(input:checked),
+.chip.is-checked {
+  border-color: var(--color-cyan);
+  background: var(--color-cyan-soft);
+  color: var(--color-text);
+}
+
+/* ---------- Mixes ---------- */
+.mixes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+  list-style: none;
+  padding: 0;
+}
+.mix-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.mix-art {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--color-cyan-soft);
+  color: var(--color-cyan);
+  font-size: 1.5rem;
+}
+.mix-card:nth-child(2) .mix-art { background: var(--color-orange-soft); color: var(--color-orange); }
+.mix-card:nth-child(3) .mix-art { background: var(--color-magenta-soft); color: var(--color-magenta); }
+.mix-card strong { display: block; font-size: var(--text-base); }
+.mix-card span { font-size: var(--text-sm); color: var(--color-text-muted); }
+.mixes-soon {
+  text-align: center;
+  margin-top: var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ---------- Responsive overrides for new components ---------- */
+@media (max-width: 860px) {
+  .about-row { grid-template-columns: 1fr; gap: var(--space-8); }
+  .about-portrait { order: -1; }
+  .portrait-frame { width: 180px; height: 180px; }
+  .about-row .value-grid { grid-template-columns: repeat(2, 1fr); }
+  .pkg-vtabs { grid-template-columns: 1fr; }
+  .pkg-vtabs-list { flex-direction: row; flex-wrap: wrap; }
+  .pkg-vtab { flex: 1 1 45%; }
+  .pkg-vtabs-panel { padding: var(--space-6); min-height: 0; }
+  .mixes-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  /* Keep the phone number visible top-right on mobile (per request) */
+  .phone-pill { display: inline-flex; padding: 0.45rem 0.6rem; font-size: var(--text-xs); }
+  .phone-pill span { display: inline; }
+  .hero-genres li { font-size: var(--text-xs); padding: 0.35rem 0.7rem; }
+}
+@media (max-width: 420px) {
+  .pkg-vtab { flex: 1 1 100%; }
+}

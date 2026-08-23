@@ -35,7 +35,7 @@
 
   /* ---------- Header shadow + active nav ---------- */
   var header = document.getElementById('header');
-  var sections = ['top', 'events', 'packages', 'music', 'gallery', 'reviews', 'book']
+  var sections = ['top', 'about', 'packages', 'gallery', 'reviews', 'mixes', 'book']
     .map(function (id) {
       return document.getElementById(id);
     })
@@ -85,6 +85,22 @@
     return el ? el.value.trim() : '';
   }
 
+  // Selected add-ons (chips) get composed into the message so the backend
+  // schema stays unchanged.
+  function addonText() {
+    var chips = form.querySelectorAll('input[name="addon"]:checked');
+    var arr = [];
+    Array.prototype.forEach.call(chips, function (c) { arr.push(c.value); });
+    return arr.length ? arr.join(', ') : '';
+  }
+  function composedMessage() {
+    var base = val('message');
+    var ad = addonText();
+    if (!ad) return base;
+    var note = 'Add-ons: ' + ad;
+    return base ? base + '\n' + note : note;
+  }
+
   function buildMessage() {
     var lines = [];
     lines.push('New event request — BeatsByBayo');
@@ -97,9 +113,9 @@
     lines.push('Venue / location: ' + val('venue'));
     if (val('guest-count')) lines.push('Guest count: ' + val('guest-count'));
     lines.push('Package interest: ' + (val('package') || 'Not selected'));
-    if (val('message')) {
+    if (composedMessage()) {
       lines.push('');
-      lines.push('Notes: ' + val('message'));
+      lines.push('Notes: ' + composedMessage());
     }
     return lines.join('\n');
   }
@@ -151,7 +167,7 @@
       venue: val('venue'),
       guest_count: val('guest-count'),
       package: val('package'),
-      message: val('message'),
+      message: composedMessage(),
       website: val('website'), // honeypot
     };
   }
@@ -319,4 +335,110 @@
       }).join('');
     }).catch(renderEmpty);
   })();
+
+  /* ---------- Package vertical tabs ---------- */
+  (function () {
+    var tabs = document.querySelectorAll('.pkg-vtab');
+    var panels = document.querySelectorAll('.pkg-vtab-content');
+    if (!tabs.length) return;
+    function activate(tab) {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.classList.toggle('is-active', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      var pid = tab.getAttribute('aria-controls');
+      panels.forEach(function (p) {
+        var on = p.id === pid;
+        p.classList.toggle('is-active', on);
+        p.hidden = !on;
+      });
+    }
+    tabs.forEach(function (t) { t.addEventListener('click', function () { activate(t); }); });
+    // Deep-link: ?pkg=signature preselects a package tab.
+    var m = /pkg=([a-z]+)/i.exec(location.search);
+    if (m) {
+      var tab = document.getElementById('pkgtab-' + m[1]);
+      if (tab) activate(tab);
+    }
+  })();
+
+  /* ---------- Add-on chip highlight (broad-browser support) ---------- */
+  (function () {
+    var chips = document.querySelectorAll('.chip input[type="checkbox"]');
+    Array.prototype.forEach.call(chips, function (box) {
+      function sync() { if (box.closest) box.closest('.chip').classList.toggle('is-checked', box.checked); }
+      sync();
+      box.addEventListener('change', sync);
+    });
+  })();
+
+  /* ---------- Last-minute inline form ---------- */
+  (function () {
+    var toggle = document.getElementById('lastminToggle');
+    var form = document.getElementById('lastminForm');
+    if (!toggle || !form) return;
+    var success = document.getElementById('lastminSuccess');
+    toggle.addEventListener('click', function () {
+      var open = form.hidden;
+      form.hidden = !open;
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    function val(name) {
+      var el = form.querySelector('[name="' + name + '"]');
+      return el ? el.value.trim() : '';
+    }
+    function validate() {
+      var ok = true;
+      ['name', 'email', 'phone', 'event-date', 'venue'].forEach(function (n) {
+        var el = form.querySelector('[name="' + n + '"]');
+        if (el && !el.value.trim()) { ok = false; el.style.borderColor = 'var(--color-orange)'; }
+        else if (el) { el.style.borderColor = ''; }
+      });
+      var em = val('email');
+      if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) ok = false;
+      return ok;
+    }
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (val('website')) return; // honeypot
+      if (!validate()) {
+        if (success) { success.hidden = false; success.className = 'form-success err'; success.textContent = 'Please complete the highlighted fields.'; }
+        return;
+      }
+      var btn = form.querySelector('[type="submit"]');
+      if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = 'Sending…'; }
+      if (success) { success.hidden = false; success.className = 'form-success'; success.textContent = 'Sending your last-minute request…'; }
+      fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: val('name'), email: val('email'), phone: val('phone'),
+          event_type: val('event-type') || 'Last-Minute',
+          event_date: val('event-date'), venue: val('venue'),
+          package: val('package') || 'Last-Minute (within 14 days)',
+          message: val('message'), website: val('website')
+        })
+      })
+        .then(function (r) { return r.json().then(function (d) { return { status: r.status, data: d }; }); })
+        .then(function (res) {
+          if (res.data && res.data.ok) {
+            form.reset();
+            if (success) { success.hidden = false; success.className = 'form-success ok'; success.textContent = 'Last-minute request sent. Bayo will reach out shortly. For anything urgent, call or text 704-704-2179.'; }
+          } else { throw new Error('not ok'); }
+        })
+        .catch(function () {
+          var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(
+            'Hi Bayo! Last-minute DJ request — ' + val('name') + ', ' + val('event-date') + ' at ' + val('venue') + '.'
+          );
+          if (success) { success.hidden = false; success.className = 'form-success err'; success.textContent = 'Could not reach the server — opening WhatsApp instead. If nothing happens, call or text 704-704-2179.'; }
+          window.open(url, '_blank', 'noopener');
+        })
+        .finally(function () {
+          if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || 'Send last-minute request'; }
+        });
+    });
+  })();
+
 })();
