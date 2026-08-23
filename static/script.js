@@ -176,19 +176,20 @@
     if (fd.get("website")) return; // honeypot
     var succ = panel.querySelector(".inline-success");
     var btn = panel.querySelector('button[type="submit"]');
-    if (btn){ btn.disabled = true; btn.dataset.orig = btn.textContent; btn.textContent = "Sending…"; }
     var payload = {
       name: fd.get("name")||"", email: fd.get("email")||"", phone: fd.get("phone")||"",
       event_type: fd.get("event-type")||"", event_date: fd.get("event-date")||"",
       venue: "", guest_count: fd.get("guest-count") ? String(fd.get("guest-count")) : "",
       package: fd.get("package")||"", message: (fd.get("message")||"").trim(), website: ""
     };
+    // Optimistic: confirm immediately so the user isn't left waiting on a
+    // cold backend (Render free tier can spin up slowly on first hit).
+    if (succ){ succ.hidden=false; succ.textContent="Thanks! Your request is in — Bayo will reply shortly with availability and a tailored quote."; succ.style.background=""; succ.style.color=""; }
+    if (btn){ btn.disabled = true; btn.dataset.orig = btn.textContent; btn.textContent = "Sent ✓"; }
     fetch(API_INQUIRIES, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) })
       .then(function(r){ if(!r.ok) throw new Error("network"); return r.json(); })
       .then(function(){
-        if (succ){ succ.hidden=false; succ.textContent="Thanks! Your request is in — Bayo will reply shortly with availability and a tailored quote."; }
         panel.reset(); syncInlineFallback();
-        if (btn){ btn.disabled=false; btn.textContent = btn.dataset.orig || "Send my request"; }
       })
       .catch(function(){
         if (succ){ succ.hidden=false;
@@ -229,14 +230,15 @@
       package: fd.get("package")||"", message: composedMessage(fd), website: ""
     };
     var btn = bookingForm.querySelector('button[type="submit"]');
-    if (btn){ btn.disabled=true; btn.dataset.orig = btn.textContent; btn.textContent="Sending…"; }
+    // Optimistic: confirm immediately so the user isn't left waiting on a
+    // cold backend (Render free tier can spin up slowly on first hit).
+    if (success){ success.hidden=false;
+      success.textContent="Thanks! Your request is in — Bayo will reply shortly with availability and a tailored quote."; success.style.background=""; success.style.color=""; }
+    if (btn){ btn.disabled=true; btn.dataset.orig = btn.textContent; btn.textContent="Sent ✓"; }
     fetch(API_INQUIRIES, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) })
       .then(function(r){ if(!r.ok) throw new Error("network"); return r.json(); })
       .then(function(){
-        if (success){ success.hidden=false;
-          success.textContent="Thanks! Your request is in — Bayo will reply shortly with availability and a tailored quote."; }
         bookingForm.reset(); syncBottomFallback();
-        if (btn){ btn.disabled=false; btn.textContent = btn.dataset.orig || "Send my request"; }
       })
       .catch(function(){
         if (success){ success.hidden=false;
