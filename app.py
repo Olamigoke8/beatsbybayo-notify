@@ -26,7 +26,7 @@ from typing import Optional
 import httpx
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -45,6 +45,20 @@ FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "BeatsByBayo <onboarding@resend
 OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "beatsbybayo@gmail.com")
 OWNER_PHONE = os.environ.get("OWNER_PHONE", "(704) 704-2179")
 WHATSAPP_LINK = "https://wa.me/17047042179"
+
+# Stripe — set STRIPE_SECRET_KEY as a Render env var to enable payment links.
+# Created per-booking from the admin panel (amounts stay private, never public).
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://beatsbybayo.com").rstrip("/")
+try:
+    import stripe as _stripe_sdk  # noqa: F401
+    _HAS_STRIPE_SDK = True
+except Exception:  # pragma: no cover - stripe may not be installed yet
+    _stripe_sdk = None
+    _HAS_STRIPE_SDK = False
+
+def _stripe_configured() -> bool:
+    return bool(_HAS_STRIPE_SDK and STRIPE_SECRET_KEY)
 
 # Full real pricing — admin-only. NEVER shipped in the public static bundle.
 PRICING = {
@@ -78,7 +92,13 @@ _CREATE_TABLE = """CREATE TABLE IF NOT EXISTS inquiries (
     package TEXT, message TEXT,
     notify_email TEXT, notify_sms TEXT, notify_autoreply TEXT,
     status TEXT DEFAULT 'new',
-    booked INTEGER DEFAULT 0
+    booked INTEGER DEFAULT 0,
+    stripe_session_id TEXT,
+    payment_url TEXT,
+    payment_amount_cents INTEGER,
+    payment_status TEXT,
+    payment_kind TEXT,
+    payment_created_at TEXT
 )"""
 
 _CREATE_TESTIMONIALS = """CREATE TABLE IF NOT EXISTS testimonials (
@@ -121,14 +141,32 @@ class Database:
         return sql.replace("?", "%s") if self.pg else sql
 
     def _init_schema(self):
+        # Columns added after the initial table was created — ALTER TABLE adds
+        # them to existing databases so a redeploy doesn't wipe inquiries.
+        _migrations = [
+            ("notify_autoreply", "TEXT"),
+            ("booked", "INTEGER DEFAULT 0"),
+            ("stripe_session_id", "TEXT"),
+            ("payment_url", "TEXT"),
+            ("payment_amount_cents", "INTEGER"),
+            ("payment_status", "TEXT"),
+            ("payment_kind", "TEXT"),
+            ("payment_created_at", "TEXT"),
+        ]
         if self.pg:
             with self._pg() as c:
-                c.cursor().execute(self._q(_CREATE_TABLE))
-                c.cursor().execute(self._q(_CREATE_TESTIMONIALS))
+                cur = c.cursor()
+                cur.execute(self._q(_CREATE_TABLE))
+                cur.execute(self._q(_CREATE_TESTIMONIALS))
+                for _col, _decl in _migrations:
+                    try:
+                        cur.execute(f"ALTER TABLE inquiries ADD COLUMN {_col} {_decl}")
+                    except Exception:
+                        pass  # column already exists
         else:
             with self._lock:
                 self._sqlite.execute(self._q(_CREATE_TABLE))
-                for _col, _decl in [("notify_autoreply", "TEXT"), ("booked", "INTEGER DEFAULT 0")]:
+                for _col, _decl in _migrations:
                     try:
                         self._sqlite.execute(f"ALTER TABLE inquiries ADD COLUMN {_col} {_decl}")
                     except sqlite3.OperationalError:
@@ -342,6 +380,173 @@ def admin_set_booked(iid: str, req: BookedReq, request: Request):
     DB.execute("UPDATE inquiries SET booked=? WHERE id=?", (1 if req.booked else 0, iid))
     DB.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Stripe payments — admin-only. Amounts are entered per-booking after a
+# private quote, so no prices are ever published on the public site.
+# ---------------------------------------------------------------------------
+class PaymentLinkReq(BaseModel):
+    amount: float          # dollars (e.g. 200.00)
+    label: str = "BeatsByBayo deposit"
+    kind: str = "deposit"  # deposit | balance | full
+
+@app.post("/api/admin/inquiries/{iid}/payment-link")
+def admin_create_payment_link(iid: str, req: PaymentLinkReq, request: Request):
+    check_token(request)
+    if not _stripe_configured():
+        raise HTTPException(503, "Stripe is not configured. Set STRIPE_SECRET_KEY in Render env vars.")
+
+    # Validate + clamp the amount server-side.
+    from decimal import Decimal, InvalidOperation
+    try:
+        amount = Decimal(str(req.amount))
+    except (InvalidOperation, ValueError):
+        raise HTTPException(400, "Invalid amount.")
+    cents = int((amount * 100).quantize(Decimal("1"), rounding="ROUND_HALF_UP"))
+    if cents < 100:          # min $1.00
+        raise HTTPException(400, "Amount must be at least $1.00.")
+    if cents > 5_000_000:    # max $50,000
+        raise HTTPException(400, "Amount is too large.")
+
+    rows = DB.fetch("SELECT * FROM inquiries WHERE id=?", (iid,))
+    if not rows:
+        raise HTTPException(404, "Inquiry not found.")
+    inq = rows[0]
+
+    label = (req.label or "BeatsByBayo deposit").strip()[:80]
+    kind = (req.kind or "deposit").strip()[:20]
+
+    _stripe_sdk.api_key = STRIPE_SECRET_KEY
+    try:
+        session = _stripe_sdk.checkout.Session.create(
+            mode="payment",
+            currency="usd",
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "unit_amount": cents,
+                    "product_data": {"name": label},
+                },
+                "quantity": 1,
+            }],
+            customer_email=(inq.get("email") or None) if "@" in (inq.get("email") or "") else None,
+            client_reference_id=iid,
+            metadata={"inquiry_id": iid, "payment_kind": kind},
+            success_url=f"{PUBLIC_BASE_URL}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{PUBLIC_BASE_URL}/",
+        )
+    except Exception as e:
+        raise HTTPException(502, f"Stripe error: {e}")
+
+    now = datetime.now(timezone.utc).isoformat()
+    DB.execute(
+        """UPDATE inquiries
+           SET stripe_session_id=?, payment_url=?, payment_amount_cents=?,
+               payment_status=?, payment_kind=?, payment_created_at=?
+           WHERE id=?""",
+        (session.id, session.url, cents, "pending", kind, now, iid),
+    )
+    DB.commit()
+    return {"ok": True, "url": session.url, "session_id": session.id, "amount_cents": cents}
+
+
+@app.get("/api/admin/inquiries/{iid}/payment-status")
+async def admin_payment_status(iid: str, request: Request):
+    """Check Stripe for the latest session on this inquiry. If paid, mark it
+    and notify Bayo via Telegram. (No webhook required for v1.)"""
+    check_token(request)
+    rows = DB.fetch("SELECT * FROM inquiries WHERE id=?", (iid,))
+    if not rows:
+        raise HTTPException(404, "Inquiry not found.")
+    inq = rows[0]
+    sid = inq.get("stripe_session_id")
+    if not sid:
+        return {"payment_status": "none", "paid": False}
+    if not _stripe_configured():
+        return {"payment_status": "unconfigured", "paid": False}
+
+    _stripe_sdk.api_key = STRIPE_SECRET_KEY
+    try:
+        session = _stripe_sdk.checkout.Session.retrieve(sid)
+    except Exception as e:
+        raise HTTPException(502, f"Stripe error: {e}")
+
+    paid = (session.payment_status == "paid")
+    db_status = "paid" if paid else str(session.payment_status or "pending")
+
+    # Transition pending -> paid once, then ping Telegram.
+    if paid and inq.get("payment_status") != "paid":
+        DB.execute(
+            "UPDATE inquiries SET payment_status=?, booked=1 WHERE id=?",
+            ("paid", iid),
+        )
+        DB.commit()
+        try:
+            await _notify_payment_paid(inq, db_status)
+        except Exception:
+            pass
+    elif inq.get("payment_status") != db_status:
+        DB.execute("UPDATE inquiries SET payment_status=? WHERE id=?", (db_status, iid))
+        DB.commit()
+
+    return {"payment_status": db_status, "paid": paid,
+            "amount_cents": inq.get("payment_amount_cents"),
+            "kind": inq.get("payment_kind")}
+
+
+async def _notify_payment_paid(inq: dict, status: str):
+    """Telegram ping when a deposit/balance is confirmed paid."""
+    token = _load_secret("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
+    chat_id = _load_secret("telegram_chat_id", "TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        return "not_configured"
+    cents = inq.get("payment_amount_cents") or 0
+    dollars = f"${cents / 100:,.2f}"
+    msg = (
+        "*Payment received — BeatsByBayo*\n\n"
+        f"*From:* {inq.get('name') or '-'}\n"
+        f"*Event:* {inq.get('event_type') or '-'} on {inq.get('event_date') or '-'}\n"
+        f"*Amount:* {dollars} ({inq.get('payment_kind') or 'payment'})\n"
+        f"*Status:* {status}\n\n"
+        "Date secured — reach out to finalize details."
+    )
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(url, data={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
+    return "sent" if resp.json().get("ok") else f"failed:{resp.status_code}"
+
+
+@app.get("/payment-success")
+def payment_success_page():
+    """Thank-you page Stripe redirects to after payment. Does NOT mark anything
+    paid — paid status comes only from the admin status check / webhook."""
+    return HTMLResponse(
+        """<!doctype html><html lang="en"><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Payment received — BeatsByBayo</title>
+        <style>
+          body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+               font-family:system-ui,sans-serif;background:#0A141E;color:#EAF6F4;text-align:center;padding:24px}
+          .card{max-width:460px;background:#0f1c2a;border:1px solid rgba(0,250,230,.3);
+                border-radius:16px;padding:48px 32px;box-shadow:0 24px 60px -20px rgba(0,0,0,.7)}
+          .check{width:56px;height:56px;border-radius:50%;background:rgba(46,204,113,.15);
+                 display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+          .check svg{width:30px;height:30px}
+          h1{font-size:24px;margin:0 0 8px}
+          p{margin:0 0 18px;opacity:.85;line-height:1.5}
+          a{color:#00FAE6;text-decoration:none;font-weight:600}
+        </style></head><body>
+        <div class="card">
+          <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <h1>Payment received</h1>
+          <p>Thanks — Bayo has been notified and your date is secured. He'll reach out shortly to finalize the details.</p>
+          <p><a href="/">Back to beatsbybayo.com</a></p>
+        </div>
+        </body></html>""",
+        media_type="text/html",
+    )
+
 
 @app.get("/api/booked-dates")
 def booked_dates():

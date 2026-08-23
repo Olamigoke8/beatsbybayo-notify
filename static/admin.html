@@ -55,6 +55,16 @@
     .act-btn.reject { background: rgba(231,76,60,0.1); color: #e74c3c; border-color: rgba(231,76,60,0.4); }
     .request-btn { margin-top: var(--space-3); font-size: var(--text-sm); padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); margin-left: 8px; }
     .copy-link { font-size: var(--text-sm); color: var(--color-accent); cursor: pointer; background: none; border: none; text-decoration: underline; display: block; margin-bottom: var(--space-4); }
+    .pay-btn, .pay-check-btn { margin-top: var(--space-3); font-size: var(--text-sm); padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); margin-left: 8px; }
+    .pay-btn { border-color: rgba(0,250,230,.5); color: #00FAE6; background: rgba(0,250,230,.08); }
+    .pay-btn:hover { background: rgba(0,250,230,.18); }
+    .pay-bar { margin-top: var(--space-3); padding: 10px 12px; border-radius: var(--radius-sm); background: rgba(0,250,230,.05); border: 1px solid rgba(0,250,230,.2); font-size: var(--text-sm); }
+    .pay-bar .pay-url { display:block; margin:6px 0; color: var(--color-accent); word-break: break-all; }
+    .pay-status { display:inline-block; padding:2px 8px; border-radius:999px; font-weight:600; font-size: var(--text-sm); }
+    .pay-status.paid { background: rgba(46,204,113,.15); color:#2ecc71; }
+    .pay-status.pending { background: rgba(245,110,46,.15); color:#F56E2E; }
+    .pay-status.none { background: rgba(255,255,255,.06); color: var(--color-text-faint); }
+    .pay-note { color: var(--color-text-faint); margin-top:6px; }
   </style>
 </head>
 <body>
@@ -177,7 +187,10 @@
               '<p><strong>Guests:</strong> ' + esc(i.guest_count || '-') + ' &nbsp; <strong>Package:</strong> ' + esc(i.package || 'Not selected') + '</p>' +
               (i.message ? '<p><strong>Notes:</strong> ' + esc(i.message) + '</p>' : '') +
               '<div class="meta"><span>Email: ' + pill(i.notify_email) + '</span><span>Text: ' + pill(i.notify_sms) + '</span><span>Auto-reply: ' + pill(i.notify_autoreply) + '</span><span>Received: ' + new Date(i.created_at).toLocaleString() + '</span></div>' +
+              paymentBar(i) +
               '<button class="book-btn' + (isBooked ? ' is-booked' : '') + '" data-id="' + i.id + '" data-booked="' + (isBooked ? '1' : '0') + '">' + (isBooked ? '✓ Booked — unmark' : 'Mark as booked') + '</button>' +
+              '<button class="pay-btn" data-id="' + i.id + '" data-name="' + attr(i.name) + '" data-event="' + attr(i.event_type) + '">Create payment link</button>' +
+              '<button class="pay-check-btn" data-id="' + i.id + '">Check payment status</button>' +
               '<button class="request-btn" data-name="' + attr(i.name) + '" data-event="' + attr(i.event_type) + '">Request review</button>' +
               '</div>';
           });
@@ -185,6 +198,16 @@
           // Wire up booked buttons
           document.querySelectorAll('.book-btn').forEach(function (b) {
             b.addEventListener('click', function () { toggleBooked(b.getAttribute('data-id'), b.getAttribute('data-booked') === '1'); });
+          });
+          // Wire up payment buttons
+          document.querySelectorAll('.pay-btn').forEach(function (b) {
+            b.addEventListener('click', function () { openPaymentLink(b.getAttribute('data-id'), b.getAttribute('data-name'), b.getAttribute('data-event')); });
+          });
+          document.querySelectorAll('.pay-check-btn').forEach(function (b) {
+            b.addEventListener('click', function () { checkPaymentStatus(b.getAttribute('data-id')); });
+          });
+          document.querySelectorAll('.copy-pay-link').forEach(function (b) {
+            b.addEventListener('click', function () { copyText(b.getAttribute('data-url'), b); });
           });
           // Wire up request-review buttons
           document.querySelectorAll('.request-btn').forEach(function (b) {
@@ -207,6 +230,57 @@
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify({ booked: !currentlyBooked }),
       }).then(function () { loadInquiries(); }).catch(function () {});
+    }
+
+    // --- Stripe payments (admin-only; amounts never public) ---
+    function fmtCents(c) { c = +c || 0; return '$' + (c / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/, ','); }
+    function paymentBar(i) {
+      var st = (i.payment_status || '').toLowerCase();
+      if (!i.stripe_session_id) return '';
+      var cls = st === 'paid' ? 'paid' : st === 'none' || !st ? 'none' : 'pending';
+      var label = st === 'paid' ? 'Paid' : (st || 'pending');
+      var amt = i.payment_amount_cents ? fmtCents(i.payment_amount_cents) : '';
+      var kind = i.payment_kind ? ' (' + esc(i.payment_kind) + ')' : '';
+      var url = i.payment_url ? '<button class="copy-link copy-pay-link" data-url="' + attr(i.payment_url) + '">Copy payment link</button>' : '';
+      return '<div class="pay-bar"><span class="pay-status ' + cls + '">' + label + '</span>' +
+        (amt ? ' &nbsp; ' + esc(amt) + kind : '') + (url ? '<span class="pay-url">' + esc(i.payment_url) + '</span>' : '') + '</div>';
+    }
+    function openPaymentLink(id, name, event) {
+      var amt = prompt('Enter the dollar amount for ' + name + '\'s ' + (event || 'event') + ' (e.g. 200):', '200');
+      if (amt == null) return;
+      var amtNum = parseFloat(amt);
+      if (!amtNum || amtNum < 1 || amtNum > 50000) { alert('Enter a whole dollar amount between 1 and 50000.'); return; }
+      var label = prompt('Label shown to client (optional):', name + ' - ' + (event || 'deposit'));
+      var body = { amount: amtNum, kind: 'deposit' };
+      if (label != null) body.label = label || 'BeatsByBayo deposit';
+      fetch(API + '/api/admin/inquiries/' + id + '/payment-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify(body),
+      }).then(function (r) { return r.json().then(function (d) { return { s: r.status, d: d }; }); })
+        .then(function (res) {
+          if (res.s === 200 && res.d.url) {
+            alert('Payment link created.\n\nShare this link with ' + name + ':\n' + res.d.url);
+            loadInquiries();
+          } else {
+            alert('Could not create link: ' + (res.d.detail || res.d.message || ('status ' + res.s)));
+          }
+        }).catch(function () { alert('Network error creating payment link.'); });
+    }
+    function checkPaymentStatus(id) {
+      fetch(API + '/api/admin/inquiries/' + id + '/payment-status', { headers: { Authorization: 'Bearer ' + token } })
+        .then(function (r) { return r.json().then(function (d) { return { s: r.status, d: d }; }); })
+        .then(function (res) {
+          if (res.s !== 200) { alert('Could not check status: ' + (res.d.detail || ('status ' + res.s))); return; }
+          if (res.d.paid) { alert('Payment confirmed: ' + (res.d.amount_cents ? fmtCents(res.d.amount_cents) : '') + ' (' + (res.d.kind || 'payment') + ').'); }
+          else { alert('Not paid yet. Status: ' + res.d.payment_status); }
+          loadInquiries();
+        }).catch(function () { alert('Network error checking status.'); });
+    }
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(function () {
+        var o = btn.textContent; btn.textContent = 'Copied!'; setTimeout(function () { btn.textContent = o; }, 1500);
+      }, function () { alert('Copy this link:\n' + text); });
     }
 
     // --- Reviews ---
