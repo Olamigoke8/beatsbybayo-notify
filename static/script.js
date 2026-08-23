@@ -117,16 +117,13 @@
     inp.dataset.ddBuilt = "1";
     inp.type = "hidden"; // keep name="event-date" for form submission
     inp.classList.add("dd-native-hidden");
-    // generate upcoming weekend dates (Fri/Sat/Sun) for the next ~10 weeks
+    // generate upcoming dates for the next ~5 weeks (all weekdays + weekends)
     var dates = []; var base = new Date(); base.setHours(0,0,0,0);
-    for(var i=0;i<70 && dates.length<24;i++){
+    for(var i=0;i<40 && dates.length<35;i++){
       var t = new Date(base.getTime() + i*86400000);
-      var wd = t.getDay();
-      if(wd===5||wd===6||wd===0){
-        var v = t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
-        var lbl = t.toLocaleDateString(undefined, {weekday:"short",month:"short",day:"numeric"});
-        dates.push({val:v, text:lbl});
-      }
+      var v = t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
+      var lbl = t.toLocaleDateString(undefined, {weekday:"short",month:"short",day:"numeric"});
+      dates.push({val:v, text:lbl});
     }
     var wrap = document.createElement("div"); wrap.className="custom-dd date-dd";
     inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
