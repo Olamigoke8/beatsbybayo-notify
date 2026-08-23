@@ -59,7 +59,7 @@
     .pay-btn { border-color: rgba(0,250,230,.5); color: #00FAE6; background: rgba(0,250,230,.08); }
     .pay-btn:hover { background: rgba(0,250,230,.18); }
     .pay-bar { margin-top: var(--space-3); padding: 10px 12px; border-radius: var(--radius-sm); background: rgba(0,250,230,.05); border: 1px solid rgba(0,250,230,.2); font-size: var(--text-sm); }
-    .pay-bar .pay-url { display:block; margin:6px 0; color: var(--color-accent); word-break: break-all; }
+    .pay-bar .pay-url { display:block; margin:6px 0; color: var(--color-accent); word-break: break-all; overflow-wrap:anywhere; max-height: 3.4em; overflow:auto; font-size: var(--text-xs); line-height:1.3; }
     .pay-status { display:inline-block; padding:2px 8px; border-radius:999px; font-weight:600; font-size: var(--text-sm); }
     .pay-status.paid { background: rgba(46,204,113,.15); color:#2ecc71; }
     .pay-status.pending { background: rgba(245,110,46,.15); color:#F56E2E; }
@@ -241,9 +241,11 @@
       var label = st === 'paid' ? 'Paid' : (st || 'pending');
       var amt = i.payment_amount_cents ? fmtCents(i.payment_amount_cents) : '';
       var kind = i.payment_kind ? ' (' + esc(i.payment_kind) + ')' : '';
-      var url = i.payment_url ? '<button class="copy-link copy-pay-link" data-url="' + attr(i.payment_url) + '">Copy payment link</button>' : '';
+      var hasUrl = !!i.payment_url;
       return '<div class="pay-bar"><span class="pay-status ' + cls + '">' + label + '</span>' +
-        (amt ? ' &nbsp; ' + esc(amt) + kind : '') + (url ? '<span class="pay-url">' + esc(i.payment_url) + '</span>' : '') + '</div>';
+        (amt ? ' &nbsp; ' + esc(amt) + kind : '') +
+        (hasUrl ? '<button class="copy-link copy-pay-link" data-url="' + attr(i.payment_url) + '">Copy payment link</button>' +
+         '<span class="pay-url" title="' + attr(i.payment_url) + '">' + esc(i.payment_url) + '</span>' : '') + '</div>';
     }
     function openPaymentLink(id, name, event) {
       var amt = prompt('Enter the dollar amount for ' + name + '\'s ' + (event || 'event') + ' (e.g. 200):', '200');
