@@ -217,6 +217,18 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
+@app.middleware("http")
+async def cache_control_headers(request: Request, call_next):
+    """Prevent browsers from serving stale HTML/JSON. Heuristic caching was
+    causing visitors to see an old form with broken selects after deploys."""
+    response = await call_next(request)
+    ctype = response.headers.get("content-type", "")
+    if "text/html" in ctype or "application/json" in ctype:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 class Inquiry(BaseModel):
     name: str
     email: str
