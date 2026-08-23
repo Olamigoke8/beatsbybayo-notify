@@ -54,6 +54,125 @@
     if (!sel || !val) return;
     var match = Array.prototype.find.call(sel.options, function(o){ return o.value === val || o.textContent === val; });
     if (match) sel.value = match.value || match.textContent;
+    sel.dispatchEvent(new Event("change", {bubbles:true}));
+  }
+
+  // ---------- Custom dropdown menus ----------
+  // Replaces native <select> + date inputs with a visible, tappable option
+  // list. Native pickers are unreliable in some in-app browsers (Instagram,
+  // Facebook) — these custom menus work everywhere.
+  function buildCustomDD(selectEl){
+    if(!selectEl || selectEl.dataset.ddBuilt) return;
+    selectEl.dataset.ddBuilt = "1";
+    var opts = [];
+    for(var i=0;i<selectEl.options.length;i++){
+      var o = selectEl.options[i];
+      opts.push({ val:o.value, text:o.textContent.trim(), disabled:!!o.disabled });
+    }
+    var placeholder = (opts[0] && !opts[0].val) ? opts[0].text : (opts[0] ? opts[0].text : "Select");
+    selectEl.classList.add("dd-native-hidden");
+    var wrap = document.createElement("div"); wrap.className = "custom-dd";
+    selectEl.parentNode.insertBefore(wrap, selectEl);
+    wrap.appendChild(selectEl);
+
+    var btn = document.createElement("button"); btn.type="button"; btn.className="custom-dd-btn";
+    btn.setAttribute("aria-haspopup","listbox"); btn.setAttribute("aria-expanded","false");
+    var val = document.createElement("span"); val.className="custom-dd-val is-placeholder"; val.textContent=placeholder;
+    var chev = document.createElement("span"); chev.className="custom-dd-chev";
+    chev.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+    btn.appendChild(val); btn.appendChild(chev);
+
+    var list = document.createElement("ul"); list.className="custom-dd-list"; list.setAttribute("role","listbox");
+    opts.forEach(function(o){
+      var li = document.createElement("li"); li.setAttribute("role","option"); li.dataset.val = o.val;
+      var s = document.createElement("span"); s.textContent = o.text; li.appendChild(s);
+      var tick = document.createElement("span"); tick.className="dd-tick"; tick.textContent="✓"; li.appendChild(tick);
+      if(o.disabled) li.className="is-disabled";
+      li.addEventListener("click", function(e){ e.stopPropagation(); if(o.disabled) return; pick(o); });
+      list.appendChild(li);
+    });
+    wrap.appendChild(btn); wrap.appendChild(list);
+
+    function markSelected(v){ Array.prototype.forEach.call(list.children, function(li){ li.classList.toggle("is-selected", li.dataset.val===v && v!==""); }); }
+    function pick(o){
+      selectEl.value = o.val;
+      val.textContent = o.text;
+      val.classList.toggle("is-placeholder", !o.val);
+      markSelected(o.val);
+      close();
+      selectEl.dispatchEvent(new Event("change", {bubbles:true}));
+    }
+    function open(){ wrap.classList.add("is-open"); btn.setAttribute("aria-expanded","true"); }
+    function close(){ wrap.classList.remove("is-open"); btn.setAttribute("aria-expanded","false"); }
+    btn.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); wrap.classList.contains("is-open") ? close() : open(); });
+    selectEl.addEventListener("change", function(){
+      var m = opts.filter(function(o){ return o.val===selectEl.value; })[0];
+      if(m){ val.textContent=m.text; val.classList.toggle("is-placeholder", !m.val); markSelected(m.val); }
+    });
+    selectEl.addEventListener("reset-dd", function(){ val.textContent=placeholder; val.classList.add("is-placeholder"); markSelected(""); });
+  }
+
+  function buildCustomDate(inp){
+    if(!inp || inp.dataset.ddBuilt) return;
+    inp.dataset.ddBuilt = "1";
+    inp.type = "hidden"; // keep name="event-date" for form submission
+    inp.classList.add("dd-native-hidden");
+    // generate upcoming weekend dates (Fri/Sat/Sun) for the next ~10 weeks
+    var dates = []; var base = new Date(); base.setHours(0,0,0,0);
+    for(var i=0;i<70 && dates.length<24;i++){
+      var t = new Date(base.getTime() + i*86400000);
+      var wd = t.getDay();
+      if(wd===5||wd===6||wd===0){
+        var v = t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
+        var lbl = t.toLocaleDateString(undefined, {weekday:"short",month:"short",day:"numeric"});
+        dates.push({val:v, text:lbl});
+      }
+    }
+    var wrap = document.createElement("div"); wrap.className="custom-dd date-dd";
+    inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+
+    var btn = document.createElement("button"); btn.type="button"; btn.className="custom-dd-btn";
+    btn.setAttribute("aria-haspopup","listbox"); btn.setAttribute("aria-expanded","false");
+    var valEl = document.createElement("span"); valEl.className="custom-dd-val is-placeholder"; valEl.textContent="Select date";
+    var chev = document.createElement("span"); chev.className="custom-dd-chev";
+    chev.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+    btn.appendChild(valEl); btn.appendChild(chev);
+
+    var list = document.createElement("ul"); list.className="custom-dd-list"; list.setAttribute("role","listbox");
+    dates.forEach(function(o){
+      var li = document.createElement("li"); li.setAttribute("role","option"); li.dataset.val=o.val;
+      var s = document.createElement("span"); s.textContent=o.text; li.appendChild(s);
+      var tick = document.createElement("span"); tick.className="dd-tick"; tick.textContent="✓"; li.appendChild(tick);
+      li.addEventListener("click", function(e){ e.stopPropagation(); pickDate(o); });
+      list.appendChild(li);
+    });
+    var otherLi = document.createElement("li"); otherLi.dataset.val="__other__";
+    var os = document.createElement("span"); os.textContent="Other date — type it"; otherLi.appendChild(os);
+    var otick = document.createElement("span"); otick.className="dd-tick"; otick.textContent="✓"; otherLi.appendChild(otick);
+    otherLi.addEventListener("click", function(e){ e.stopPropagation(); pickOther(); });
+    list.appendChild(otherLi);
+
+    var otherInput = document.createElement("input"); otherInput.type="text"; otherInput.className="date-other-input"; otherInput.placeholder="MM/DD/YYYY"; otherInput.autocomplete="off";
+    wrap.appendChild(btn); wrap.appendChild(list); wrap.appendChild(otherInput);
+
+    function markSelected(v){ Array.prototype.forEach.call(list.children, function(li){ li.classList.toggle("is-selected", li.dataset.val===v); }); }
+    function pickDate(o){ inp.value=o.val; valEl.textContent=o.text; valEl.classList.remove("is-placeholder"); markSelected(o.val); otherInput.classList.remove("is-shown"); otherInput.value=""; close(); inp.dispatchEvent(new Event("change",{bubbles:true})); }
+    function pickOther(){ valEl.textContent="Other date"; valEl.classList.remove("is-placeholder"); markSelected("__other__"); otherInput.classList.add("is-shown"); setTimeout(function(){ otherInput.focus(); }, 50); close(); inp.dispatchEvent(new Event("change",{bubbles:true})); }
+    otherInput.addEventListener("input", function(){ inp.value = otherInput.value; inp.dispatchEvent(new Event("change",{bubbles:true})); });
+    function open(){ wrap.classList.add("is-open"); btn.setAttribute("aria-expanded","true"); }
+    function close(){ wrap.classList.remove("is-open"); btn.setAttribute("aria-expanded","false"); }
+    btn.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); wrap.classList.contains("is-open") ? close() : open(); });
+    inp.addEventListener("reset-dd", function(){ valEl.textContent="Select date"; valEl.classList.add("is-placeholder"); markSelected(""); otherInput.classList.remove("is-shown"); otherInput.value=""; });
+  }
+
+  // single delegated outside-click closer
+  document.addEventListener("click", function(e){
+    $$(".custom-dd.is-open").forEach(function(dd){ if(!dd.contains(e.target)){ dd.classList.remove("is-open"); var b=dd.querySelector(".custom-dd-btn"); if(b) b.setAttribute("aria-expanded","false"); } });
+  });
+
+  function enhanceAll(root){
+    $$("select", root).forEach(buildCustomDD);
+    $$('input[type="date"]', root).forEach(buildCustomDate);
   }
 
   function showInlinePanel(opts){
@@ -246,6 +365,25 @@
           success.style.background="rgba(245,110,46,.14)"; success.style.color="#ff8a4d"; }
         if (btn){ btn.disabled=false; btn.textContent = btn.dataset.orig || "Send my request"; }
       });
+  });
+
+  // ---------- Enhance native selects + date inputs into custom dropdowns ----------
+  // Works in every browser (incl. Instagram/Facebook in-app browsers where
+  // native pickers often fail to open). Applied to the bottom form AND the
+  // reusable inline panel (cloned from template).
+  enhanceAll(bookingForm);
+  if (panel) enhanceAll(panel);
+  // reflect form reset (panel.reset / bookingForm.reset) back onto custom menus
+  [panel, bookingForm].forEach(function(f){
+    if (!f) return;
+    f.addEventListener("reset", function(){
+      setTimeout(function(){
+        $$(".custom-dd", f).forEach(function(dd){
+          var sel = dd.querySelector("select"); if (sel) sel.dispatchEvent(new Event("reset-dd"));
+          var hd = dd.querySelector('input[type="hidden"]'); if (hd) hd.dispatchEvent(new Event("reset-dd"));
+        });
+      }, 0);
+    });
   });
 
   // ---------- Testimonials ----------
