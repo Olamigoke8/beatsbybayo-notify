@@ -7,17 +7,23 @@
     <meta name="description" content="BeatsByBayo — professional DJ and MC for corporate events, weddings, 50+ celebrations and private parties across Charlotte, NC. Top 40, R&B, Hip-Hop, 80s, 90s and Afrobeats." />
     <meta name="theme-color" content="#0a141e" />
     <meta name="color-scheme" content="dark" />
-    <link rel="icon" href="assets/logo-main.jpg" type="image/jpeg" />
+    <link rel="icon" href="assets/favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="assets/logo-main.jpg" />
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content="BeatsByBayo | Charlotte DJ & MC" />
     <meta property="og:description" content="Professional DJ and MC for corporate events, 50+ celebrations and private parties in Charlotte, NC." />
-    <meta property="og:image" content="assets/logo-main.jpg" />
+    <meta property="og:image" content="https://beatsbybayo.com/assets/logo-main.jpg" />
+    <meta property="og:url" content="https://beatsbybayo.com/" />
 
     <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
     <link href="https://api.fontshare.com/v2/css?f[]=space-grotesk@400,500,600,700&f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=7" />
+    <style>
+      .gr-head{ display:flex; align-items:center; justify-content:center; gap:10px; margin:2px 0 18px; color:var(--text); font-size:.95rem; }
+      .gr-badge{ width:26px; height:26px; border-radius:50%; background:#fff; color:#4285F4; font-weight:700; display:inline-flex; align-items:center; justify-content:center; font-family:var(--font-display); flex-shrink:0; }
+      .gr-head .gr-stars{ color:#FBBC04; letter-spacing:2px; }
+    </style>
   </head>
   <body id="top">
 
@@ -77,39 +83,6 @@
     </div>
 
     <main>
-      <!-- ============ ABOUT / MEET BAYO ============ -->
-      <section class="section about" id="about">
-        <div class="container about-grid">
-          <div class="about-visual">
-            <img src="assets/bayo-portrait.jpg" alt="Bayo, Charlotte DJ and MC, behind the decks at an event" loading="lazy" />
-          </div>
-          <div class="about-copy">
-            <p class="kicker">Meet Bayo</p>
-            <h2 class="section-title">A host who reads the room — <span class="cyan">not a playlist on shuffle.</span></h2>
-            <p>
-              For 25 years I worked as an X-ray tech — a job built on patience, calm under pressure, and paying
-              close attention to the person in front of me. BeatsByBayo is that same care, poured into music.
-            </p>
-            <p>
-              I'm not chasing flashy transitions or showing off behind the booth. I read the room and let each
-              song play as long as needed, so the floor stays moving and every guest — from the regulars up front
-              to the ones hanging back — feels the joy of the night.
-            </p>
-            <p>
-              It's personal, too. I have a real passion for our 50+ community events, where music does more than
-              entertain — it brings people together, lifts spirits, and helps combat the isolation so many face
-              later in life. Watching that room light up and reconnect is exactly why I do this.
-            </p>
-            <ul class="values" role="list">
-              <li><span class="v-dot" aria-hidden="true"></span> Reads the room, live</li>
-              <li><span class="v-dot" aria-hidden="true"></span> Clean sound, clean presentation</li>
-              <li><span class="v-dot" aria-hidden="true"></span> Up-front about scope — no surprise fees</li>
-              <li><span class="v-dot" aria-hidden="true"></span> One point of contact from first text to last song</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
       <!-- ============ HERO ============ -->
       <section class="hero" id="home">
         <div class="hero-bg" aria-hidden="true">
@@ -191,6 +164,39 @@
         <svg class="hero-wave" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true">
           <path d="M0,40 Q60,10 120,40 T240,40 T360,40 T480,40 T600,40 T720,40 T840,40 T960,40 T1080,40 T1200,40 T1320,40 T1440,40 L1440,80 L0,80 Z" fill="var(--surface-1)"/>
         </svg>
+      </section>
+
+      <!-- ============ ABOUT / MEET BAYO ============ -->
+      <section class="section about" id="about">
+        <div class="container about-grid">
+          <div class="about-visual">
+            <img src="assets/bayo-portrait.jpg" alt="Bayo, Charlotte DJ and MC, behind the decks at an event" loading="lazy" />
+          </div>
+          <div class="about-copy">
+            <p class="kicker">Meet Bayo</p>
+            <h2 class="section-title">A host who reads the room — <span class="cyan">not a playlist on shuffle.</span></h2>
+            <p>
+              For 25 years I worked as an X-ray tech — a job built on patience, calm under pressure, and paying
+              close attention to the person in front of me. BeatsByBayo is that same care, poured into music.
+            </p>
+            <p>
+              I'm not chasing flashy transitions or showing off behind the booth. I read the room and let each
+              song play as long as needed, so the floor stays moving and every guest — from the regulars up front
+              to the ones hanging back — feels the joy of the night.
+            </p>
+            <p>
+              It's personal, too. I have a real passion for our 50+ community events, where music does more than
+              entertain — it brings people together, lifts spirits, and helps combat the isolation so many face
+              later in life. Watching that room light up and reconnect is exactly why I do this.
+            </p>
+            <ul class="values" role="list">
+              <li><span class="v-dot" aria-hidden="true"></span> Reads the room, live</li>
+              <li><span class="v-dot" aria-hidden="true"></span> Clean sound, clean presentation</li>
+              <li><span class="v-dot" aria-hidden="true"></span> Up-front about scope — no surprise fees</li>
+              <li><span class="v-dot" aria-hidden="true"></span> One point of contact from first text to last song</li>
+            </ul>
+          </div>
+        </div>
       </section>
 
       <!-- ============ PROOF STRIP ============ -->
@@ -387,8 +393,29 @@
             <p class="kicker">Client Stories</p>
             <h2 class="section-title">Kind words from <span class="cyan">the dance floor.</span></h2>
           </div>
+          <div class="gr-head">
+            <span class="gr-badge">G</span>
+            <span><strong>5.0</strong> <span class="gr-stars" aria-label="5 out of 5 stars">★★★★★</span> · 3 Google reviews</span>
+          </div>
+          <div class="reviews-grid" aria-label="Google reviews">
+            <article class="review-card">
+              <div class="review-stars" aria-label="5 out of 5 stars">★★★★★</div>
+              <blockquote>"We had an international party and the music was literally from start to finish. A little bit of everything was played ... with very little request needed."</blockquote>
+              <p class="review-meta">— THOMYKA ROUNDTREE · Google review</p>
+            </article>
+            <article class="review-card">
+              <div class="review-stars" aria-label="5 out of 5 stars">★★★★★</div>
+              <blockquote>"Kept the party jumping all day!"</blockquote>
+              <p class="review-meta">— TJ Roundtree · Google review</p>
+            </article>
+            <article class="review-card">
+              <div class="review-stars" aria-label="5 out of 5 stars">★★★★★</div>
+              <blockquote>"Working with Beatsbybayo was smooth and hassle-free from start to finish. He showed up fully prepared, was highly professional with setup and timing, and delivered an outstanding music selection that kept the atmosphere vibrant and welcoming. Highly recommended for any event!"</blockquote>
+              <p class="review-meta">— Jossy Tag · Google review</p>
+            </article>
+          </div>
           <div class="reviews-grid" id="testimonialList" aria-live="polite">
-            <p class="reviews-empty">Client stories coming soon — be the first to share yours. <a href="/review.html">Leave a review</a>.</p>
+            <p class="reviews-empty">More client stories coming soon — be the first to share yours here. <a href="/review.html">Leave a review</a>.</p>
           </div>
           <div class="reviews-cta">
             <a class="btn btn-outline" href="/review.html">Leave a review</a>
@@ -433,12 +460,12 @@
                 <input required name="name" type="text" autocomplete="name" placeholder="Your name" />
               </label>
               <label class="field"><span class="field-label">Email</span>
-                <input required name="email" type="email" autocomplete="email" placeholder="you@example.com" />
+                <input required name="email" type="email" autocomplete="email" placeholder="yourname@email.com" />
               </label>
             </div>
             <div class="form-row">
               <label class="field"><span class="field-label">Phone</span>
-                <input required name="phone" type="tel" autocomplete="tel" placeholder="(704) 555-0123" />
+                <input required name="phone" type="tel" autocomplete="tel" placeholder="(704) 555-0100" />
               </label>
               <label class="field"><span class="field-label">Event type</span>
                 <select required name="event-type" id="eventTypeSelect">
@@ -550,6 +577,7 @@
           <a href="#reviews">Reviews</a>
           <a href="#quote">Get a quote</a>
           <a href="tel:+17047042179">704-704-2179</a>
+          <a href="admin.html" rel="nofollow" style="opacity:.55">Admin</a>
         </nav>
       </div>
       <p class="copyright">© <span id="year"></span> BeatsByBayo · JBk Events LLC. Corporate · Wedding · Private events.</p>
@@ -570,12 +598,12 @@
             <input required name="name" type="text" autocomplete="name" placeholder="First &amp; last" />
           </label>
           <label class="field"><span class="field-label">Phone</span>
-            <input required name="phone" type="tel" autocomplete="tel" placeholder="(704) 555-0123" />
+            <input required name="phone" type="tel" autocomplete="tel" placeholder="(704) 555-0100" />
           </label>
         </div>
         <div class="form-row">
           <label class="field"><span class="field-label">Email</span>
-            <input required name="email" type="email" autocomplete="email" placeholder="you@example.com" />
+            <input required name="email" type="email" autocomplete="email" placeholder="yourname@email.com" />
           </label>
           <label class="field"><span class="field-label">Event date</span>
             <input required name="event-date" type="date" />

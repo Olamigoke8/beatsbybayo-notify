@@ -12,8 +12,8 @@
   "use strict";
 
   // ---------- API detection ----------
-  var API_BASE = "__PORT_8000__";
-  if (API_BASE.indexOf("__PORT_8000__") !== -1) API_BASE = "";
+  var API_BASE = "port/8000";
+  if (API_BASE.indexOf("port/8000") !== -1) API_BASE = "";
   var API_INQUIRIES    = API_BASE + "/api/inquiries";
   var API_TESTIMONIALS = API_BASE + "/api/testimonials";
 
@@ -117,10 +117,12 @@
     inp.dataset.ddBuilt = "1";
     inp.type = "hidden"; // keep name="event-date" for form submission
     inp.classList.add("dd-native-hidden");
-    // generate upcoming dates for the next ~5 weeks (all weekdays + weekends)
-    var dates = []; var base = new Date(); base.setHours(0,0,0,0);
-    for(var i=0;i<40 && dates.length<35;i++){
-      var t = new Date(base.getTime() + i*86400000);
+    // generate upcoming dates for the next 12 months (all weekdays + weekends)
+    // NOTE: date arithmetic via setDate (not +86400000ms) so DST transitions
+    // don't duplicate a day (e.g. Nov 1 appeared twice when clocks fell back).
+    var dates = []; var now = new Date(); now.setHours(0,0,0,0);
+    for(var i=0;i<365;i++){
+      var t = new Date(now.getFullYear(), now.getMonth(), now.getDate()+i);
       var v = t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
       var lbl = t.toLocaleDateString(undefined, {weekday:"short",month:"short",day:"numeric"});
       dates.push({val:v, text:lbl});
@@ -143,7 +145,7 @@
       li.addEventListener("click", function(e){ e.stopPropagation(); pickDate(o); });
       list.appendChild(li);
     });
-    var otherLi = document.createElement("li"); otherLi.dataset.val="__other__";
+    var otherLi = document.createElement("li"); otherLi.setAttribute("role","option"); otherLi.dataset.val="__other__";
     var os = document.createElement("span"); os.textContent="Other date — type it"; otherLi.appendChild(os);
     var otick = document.createElement("span"); otick.className="dd-tick"; otick.textContent="✓"; otherLi.appendChild(otick);
     otherLi.addEventListener("click", function(e){ e.stopPropagation(); pickOther(); });
